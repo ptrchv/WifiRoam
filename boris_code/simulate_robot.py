@@ -51,6 +51,7 @@ def coords_to_zone(row, col, zones_x):
 # --- TRAJECTORY GENERATION LOGIC (No changes here)               ---
 # -------------------------------------------------------------------
 
+# Cambia direzione quando sbatte contro il muro
 def generate_trajectory_by_length(start_zone, length, zones_x, zones_y):
     path = [start_zone]
     current_row, current_col = zone_to_coords(start_zone, zones_x)
@@ -70,6 +71,7 @@ def generate_trajectory_by_length(start_zone, length, zones_x, zones_y):
         next_col = current_col + current_direction[1]
         is_wall_hit = not (0 <= next_row < zones_y and 0 <= next_col < zones_x)
 
+        # This is to avoid going back on the same path after a wall hit
         if is_wall_hit:
             possible_moves = get_valid_moves(current_row, current_col)
             reverse_direction = (-current_direction[0], -current_direction[1])
