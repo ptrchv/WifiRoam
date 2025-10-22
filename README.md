@@ -16,3 +16,4 @@
 
  - generate map plots from boris code (possibily one plot for each metric, RSSI and latency, with all APs)
  - function to generate trajectories
+ - function to generate handover times
