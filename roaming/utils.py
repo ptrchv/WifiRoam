@@ -1,6 +1,7 @@
 from typing import get_args, get_origin
 from dataclasses import dataclass, is_dataclass
 import numpy as np
+import math
 
 def nested_dataclass(*args, **kwargs):
     def wrapper(cls):
@@ -28,14 +29,35 @@ def nested_dataclass(*args, **kwargs):
         return cls
     return wrapper(args[0]) if args else wrapper
 
+
 @dataclass
 class TupleRC:
-    row: int
-    col: int
+    row: float
+    col: float
 
+    def __add__(self, other):
+        return TupleRC(self.row + other.row, self.col + other.col)
+    
+    def __sub__(self, other):
+        return TupleRC(self.row - other.row, self.col - other.col)
+    
+    def __mul__(self, val):
+        return TupleRC(self.row * val, self.col * val)
+
+    def __truediv__(self, val):
+        if isinstance(val, (int, float)):
+            if val == 0:
+                raise ZeroDivisionError("division by zero")
+            return TupleRC(self.row / val, self.col / val)
+        return NotImplemented
+    
+    def norm(self):
+        return math.sqrt(self.row **2 + self.col**2)
+    
     @property
     def np_array(self):
         return np.array([self.row, self.col])
+    
 
 @nested_dataclass
 class WifiParams:
