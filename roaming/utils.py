@@ -3,6 +3,7 @@ from dataclasses import dataclass, is_dataclass
 import numpy as np
 import math
 
+
 def nested_dataclass(*args, **kwargs):
     def wrapper(cls):
         cls = dataclass(cls, **kwargs)
@@ -57,7 +58,7 @@ class TupleRC:
     @property
     def np_array(self):
         return np.array([self.row, self.col])
-    
+
 
 @nested_dataclass
 class WifiParams:
@@ -65,6 +66,7 @@ class WifiParams:
     handover_penalty: int
     switch_penalty: int
     no_ap_penalty: int
+
 
 @nested_dataclass
 class NetworkConfig:
