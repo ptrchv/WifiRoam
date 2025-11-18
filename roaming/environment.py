@@ -38,10 +38,13 @@ class WifiSimulator:
         return {ap_id: max(0.1, min(1.0, base + np.random.uniform(-0.1, 0.1)))
                 for ap_id, base in self._net_conf.base_ap_loads.items()}
 
-    def sample_oracle(self, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
+    def sample_tx(self, time: float | None, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
         rssi = self.calculate_rssi(sta_pos, ap)
         lat = self.calculate_latency(rssi, self._net_conf.ap_loads[ap])
         return rssi, lat
+    
+    def sample_beacons(self, time: float, sta_pos) -> list[float]:
+        return [self.calculate_rssi(sta_pos, ap) for ap in range(self.n_aps)]
 
     def to_json(self) -> str:
         return json.dumps({"net_conf": asdict(self._net_conf), "wifi_params": asdict(self._wifi_params)})

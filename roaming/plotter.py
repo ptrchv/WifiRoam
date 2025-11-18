@@ -51,7 +51,7 @@ class MapPlotter:
                 for col in range(0, map_cols):
                     sample_rssi, sample_latency = [], []
                     for _ in range(num_samples):
-                        rssi, lat = self._wifi_sim.sample_oracle(TupleRC(row, col), ap)
+                        rssi, lat = self._wifi_sim.sample_tx(time=None, sta_pos=TupleRC(row, col), ap=ap)
                         sample_rssi.append(rssi)
                         sample_latency.append(lat)
                     self._mat_rssi[ap, row, col] = np.mean(sample_rssi)
@@ -126,15 +126,16 @@ class MapPlotter:
         trajectory = True
         if trajectory:
             df_trj = pd.read_csv(self._exp_dir / "trajectory.csv")
-            segments = df_trj.groupby(["segment", "ap"]).agg(
-                start_x=('x_pos', lambda row: row.iloc[0]), start_y=('y_pos', lambda row: row.iloc[0]),
-                end_x=('x_pos', lambda row: row.iloc[-1]), end_y=('y_pos', lambda row: row.iloc[-1])).reset_index()
+            segments = df_trj.groupby(["segment", "ap", "count"]).agg(
+                time=('time', lambda row: row.iloc[0]),
+                start_row=('row', lambda row: row.iloc[0]), start_col=('col', lambda row: row.iloc[0]),
+                end_row=('row', lambda row: row.iloc[-1]), end_col=('col', lambda row: row.iloc[-1])).sort_values(by='time', ascending=True).reset_index()
 
             plt.ion()
             for row in segments.itertuples():
-                print("Segment {} - {} --> {}".format(row.segment, TupleRC(row.start_y, row.start_x), TupleRC(row.end_y, row.end_x)))
+                print("Segment {} - {} - {} --> {}".format(row.segment, row.ap, TupleRC(row=row.start_row, col=row.start_col), TupleRC(row=row.end_row, col=row.end_col)))
                 for fig, ax in fig_dict.values():
-                    ax.plot([row.start_x, row.end_x], [row.start_y, row.end_y], color=MapPlotter.COLORS[int(row.ap)])
+                    ax.plot([row.start_col, row.end_col], [row.start_row, row.end_row], color=MapPlotter.COLORS[int(row.ap)])
                 plt.pause(0.01)
                 input()
 

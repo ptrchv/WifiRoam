@@ -3,9 +3,12 @@ import random
 import numpy as np
 from roaming.utils import TupleRC, NetworkConfig, WifiParams
 from roaming.plotter import MapPlotter
-from roaming.roaming import RoamingAlgorithm
+from roaming.roaming import DistanceRoaming, RSSIRoamingAlgorithm
 from roaming.environment import WifiSimulator
-from roaming.trajectory import TrajectorySimulator
+from roaming.trajectory import TrajectorySimulator, SimConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 DATA_FOLDER = "data"
@@ -41,6 +44,10 @@ def main():
     # Create simpy environment
     env = simpy.Environment()
 
+    # Enable logging
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Starting simulation")
+
     # map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
     # if not map_plt.load_from_file():
     #     wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
@@ -50,14 +57,21 @@ def main():
     # map_plt.plot_maps()
 
     wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
-    traj_sim = TrajectorySimulator(env=env, wifi_sim=wifi_sim, alg=RoamingAlgorithm(1, 2, 3))
-    traj_sim.generate_trajectory(50)
-    traj_sim.configure(exp_name=EXP_NAME, period=0.1, speed=0.5)
+    #roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_sim, roaming_time=0.2)
+    roam_alg = RSSIRoamingAlgorithm(env=env, wifi_sim=wifi_sim, roaming_time=0.2, rssi_threshold=-85)
 
-    # map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
-    # map_plt.load_from_file()
-    # map_plt.plot_maps()
+    sim_config = SimConfig(exp_name=EXP_NAME, pkt_period=0.1, speed=0.5)    
+    traj_sim = TrajectorySimulator(env=env, wifi_sim=wifi_sim, roam_alg=roam_alg)
+    traj_sim.generate_trajectory(50)
+    traj_sim.configure(sim_config)
     env.run()
+
+    print(wifi_sim.ap_positions)
+
+    map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
+    map_plt.load_from_file()
+    map_plt.plot_maps()
+    
 
 
 if __name__ == "__main__":    
