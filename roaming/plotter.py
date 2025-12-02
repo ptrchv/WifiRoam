@@ -43,8 +43,10 @@ class MapPlotter:
     def generate_maps(self, resolution: float = 1.0, num_samples = 10, save=True):
         map_rows, map_cols = round(
             self._wifi_sim.map_dims.row / resolution), round(self._wifi_sim.map_dims.col/resolution)
-        self._mat_rssi = np.zeros((self._wifi_sim.n_aps, map_rows, map_cols))
-        self._mat_lat = np.zeros((self._wifi_sim.n_aps, map_rows, map_cols))
+        self._mat_rssi = np.empty((self._wifi_sim.n_aps, map_rows, map_cols))
+        self._mat_lat = np.empty((self._wifi_sim.n_aps, map_rows, map_cols))
+        self._mat_rssi[:] = np.nan
+        self._mat_lat[:] = np.nan
         for ap in range(self._wifi_sim.n_aps):
             print("Simulating AP {} in {}".format(ap,self._wifi_sim.ap_positions[ap]))
             for row in range(0, map_rows):
@@ -54,8 +56,9 @@ class MapPlotter:
                         rssi, lat = self._wifi_sim.sample_tx(time=None, sta_pos=TupleRC(row, col), ap=ap)
                         sample_rssi.append(rssi)
                         sample_latency.append(lat)
-                    self._mat_rssi[ap, row, col] = np.mean(sample_rssi)
-                    self._mat_lat[ap, row, col] = np.mean(sample_latency)
+                    self._mat_rssi[ap, row, col] = np.mean([s for s in sample_rssi if s is not None])
+                    self._mat_lat[ap, row, col] = np.mean([s for s in sample_latency if s is not None])
+
         if save:
             with open(self._exp_dir / "config.json", "w") as f:
                 f.write(self._wifi_sim.to_json())
@@ -64,7 +67,7 @@ class MapPlotter:
             np.save(map_dir / "rssi.npy", self._mat_rssi, allow_pickle=False)
             np.save(map_dir / "lat.npy", self._mat_lat, allow_pickle=False)
 
-    def plot_maps(self, extension: str = "png"):
+    def plot_maps(self, extension: str = "png", trajectory=False):
         if self._mat_rssi is None or self._mat_lat is None:
             raise ValueError("Maps not generated yet.")
         fig_dict = {}
@@ -72,8 +75,8 @@ class MapPlotter:
         plot_dir = (self._exp_dir / "plots")
         plot_dir.mkdir(parents=True, exist_ok=True)
     
-        mat_rssi_best = np.max(self._mat_rssi, axis=0)
-        mat_lat_best = np.min(self._mat_lat, axis=0)
+        mat_rssi_best = np.nanmax(self._mat_rssi, axis=0)
+        mat_lat_best = np.nanmin(self._mat_lat, axis=0)
 
         mat_lat_multi = self._mat_lat.copy()
         for ap in range(self._wifi_sim.n_aps):
@@ -123,7 +126,6 @@ class MapPlotter:
         fig.savefig(plot_dir / "rssi_multi.{}".format(extension))
         fig_dict["rssi_multi"] = fig , ax
 
-        trajectory = True
         if trajectory:
             df_trj = pd.read_csv(self._exp_dir / "trajectory.csv")
             segments = df_trj.groupby(["segment", "ap", "count"]).agg(

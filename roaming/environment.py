@@ -2,10 +2,51 @@ import math
 import numpy as np
 import json
 from dataclasses import asdict
+from abc import ABC, abstractmethod
+from enum import Enum
+
 from roaming.utils import NetworkConfig, WifiParams, TupleRC
 
 
-class WifiSimulator:
+class WifiMetric(Enum):
+    RSSI = 1
+    LATENCY = 2
+    NUM_TRIES = 3
+    PLR = 4
+
+
+class WifiStat(Enum):
+    MEAN = 1
+    PERC_99 = 2
+    PERC_99_9 = 3
+
+
+class WifiSimulator(ABC):
+    @property
+    @abstractmethod
+    def map_dims(self) -> TupleRC:
+        pass
+
+    @property
+    @abstractmethod
+    def ap_positions(self) -> list[TupleRC]:
+        pass
+
+    @property
+    @abstractmethod
+    def n_aps(self) -> int:
+        pass
+
+    @abstractmethod
+    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
+        pass
+
+    @abstractmethod
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[float]:
+        pass
+
+
+class SimpleWifiSimulator(WifiSimulator):
     def __init__(self, net_conf: NetworkConfig, wifi_params: WifiParams):
         self._wifi_params = wifi_params
         self._net_conf = net_conf
@@ -22,14 +63,14 @@ class WifiSimulator:
     def n_aps(self):
         return len(self._net_conf.ap_positions)
 
-    def calculate_rssi(self, sta_pos: TupleRC, ap_id: int) -> float:
+    def _calculate_rssi(self, sta_pos: TupleRC, ap_id: int) -> float:
         dist = np.linalg.norm(
             sta_pos.np_array - self._net_conf.ap_positions[ap_id].np_array)
         path_loss_rssi = -30 - 35 * math.log10(dist + 1)
         noise = np.random.normal(0, 2)
         return path_loss_rssi + noise
 
-    def calculate_latency(self, rssi: float, load: float) -> float:
+    def _calculate_latency(self, rssi: float, load: float) -> float:
         rssi_quality = 100 + rssi
         latency = 10 + (load * 10) + (150 / (rssi_quality + 5))
         return max(5, latency)
@@ -53,3 +94,50 @@ class WifiSimulator:
     def from_json(json_str: str):
         data = json.loads(json_str)
         return WifiSimulator(NetworkConfig(**data["net_conf"]), WifiParams(**data["wifi_params"]))
+
+
+class MapLoader:
+    def __init__(self, net_conf: NetworkConfig):
+        self._net_conf = net_conf
+        self._maps = {}
+
+    @property
+    def ap_positions(self):
+        return self._net_conf.ap_positions
+
+    @property
+    def n_aps(self):
+        return len(self._net_conf.ap_positions)
+
+    @property
+    def map_dims(self):
+        return self._net_conf.map_dims
+
+    def load_maps(self, wifi_metric: WifiMetric, wifi_stats: WifiStat, map_files: list[str]):
+        self._maps[(wifi_metric, wifi_stats)] = []
+        for map_path in map_files:
+            np_mat = np.genfromtxt(map_path, delimiter=',')
+            mask = (np_mat[:, :] < 0)# set -1 to nan
+            np_mat[mask] = np.nan
+            self._maps[(wifi_metric, wifi_stats)].append(np_mat)
+
+    def _get_metric(self, pos: TupleRC, ap: int, wifi_metric: WifiMetric, wifi_stats: WifiStat):
+        if wifi_metric == WifiMetric.RSSI:
+            return self._get_rssi(pos, ap)
+        ap_pos = self._net_conf.ap_positions[ap]
+        cell_pos = ((pos-ap_pos) / 2.5 + TupleRC(20, 20)).round()
+        ap_map = self._maps[(wifi_metric, wifi_stats)][ap]
+        if 0 < cell_pos.row < ap_map.shape[0] and 0 < cell_pos.col < ap_map.shape[1]:
+            return ap_map[cell_pos.row, cell_pos.col]
+        return np.nan
+    
+    def _get_rssi(self, pos: TupleRC, ap: int):
+        return 0
+    
+    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
+        rssi = self._get_metric(sta_pos, ap, WifiMetric.RSSI, WifiStat.MEAN)
+        latency = self._get_metric(sta_pos, ap, WifiMetric.LATENCY, WifiStat.MEAN)
+        return rssi, latency
+
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[float]:
+        pass

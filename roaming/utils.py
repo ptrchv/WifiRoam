@@ -52,6 +52,11 @@ class TupleRC:
             return TupleRC(self.row / val, self.col / val)
         return NotImplemented
     
+    def round(self, digits: int | None = None):
+        self.col = round(self.col, digits)
+        self.row = round(self.row, digits)
+        return self
+    
     def norm(self):
         return math.sqrt(self.row **2 + self.col**2)
     
