@@ -1,1 +1,0 @@
-{"net_conf": {"map_dims": {"row": 60, "col": 120}, "ap_positions": [{"row": 0, "col": 0}, {"row": 59, "col": 0}, {"row": 0, "col": 119}, {"row": 59, "col": 119}, {"row": 30, "col": 60}], "ap_loads": [0.2, 0.2, 0.2, 0.2, 0.6]}, "wifi_params": {"rssi_threshold": -85.0, "handover_penalty": 500, "switch_penalty": 50, "no_ap_penalty": 2000}}
