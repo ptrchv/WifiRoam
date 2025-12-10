@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from roaming.utils import TupleRC
-from roaming.environment import WifiSimulator
+from roaming.environment import WifiEnvironment
 
 
 class MapPlotter:
@@ -24,14 +24,14 @@ class MapPlotter:
     def map_loaded(self):
         return self._mat_rssi is not None and self._mat_lat is not None
     
-    def set_simulator(self, wifi_sim: WifiSimulator):
+    def set_simulator(self, wifi_sim: WifiEnvironment):
         self._wifi_sim = wifi_sim
 
     def load_from_file(self):
         conf_file = self._exp_dir / "config.json"
         if conf_file.exists():
             with open(conf_file, "r") as f:
-                self._wifi_sim = WifiSimulator.from_json(f.read())
+                self._wifi_sim = WifiEnvironment.from_json(f.read())
             rssi_map_file = self._exp_dir / "maps" / "rssi.npy"
             lat_map_file = self._exp_dir / "maps" / "lat.npy"
             if rssi_map_file.exists() and lat_map_file.exists():

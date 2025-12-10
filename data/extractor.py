@@ -4,7 +4,7 @@ from pathlib import Path
 import copy
 import csv
 
-BASE_DIR = Path("./handover")
+BASE_DIR = Path("./handover_hi_res")
 EXP_DIR = BASE_DIR / "raw"
 
 EXP_FILE_SUFFIX = ".dat"
@@ -130,11 +130,13 @@ def create_dataset_info(conf_file, dataset_dir):
             writer = csv.writer(f)
             for row in file_map:
                 writer.writerow(row)
-                
+        
+        ap_pos = conf["config"]["apNodes"][0]["position"]
         info_json = {
             "range": ((min_x, max_x), (min_y, max_y)),
             "shape": (x_size, y_size),
-            "step": (step_x, step_y)
+            "step": (step_x, step_y),
+            "ap_pos": (round(ap_pos["x"]), round(ap_pos["y"]), round(ap_pos["z"]))
         }
 
         with open(dataset_dir / "map_{}".format(idx) / "info.json", 'w') as f:

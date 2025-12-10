@@ -3,7 +3,7 @@ import simpy
 import pandas as pd
 import random
 
-from roaming.environment import WifiSimulator
+from roaming.environment import WifiEnvironment
 from roaming.utils import TupleRC
 from roaming.roaming import RoamingAlgorithm
 
@@ -27,7 +27,7 @@ class TrajectorySimulator:
         segment_points: list[TupleRC] = field(default_factory=list)
         dataset: pd.DataFrame = field(default_factory= lambda: pd.DataFrame(columns=["time", "segment", "ap", "count", "row", "col", "rssi", "latency"]))
 
-    def __init__(self, env: simpy.Environment, wifi_sim: WifiSimulator, roam_alg: RoamingAlgorithm):
+    def __init__(self, env: simpy.Environment, wifi_sim: WifiEnvironment, roam_alg: RoamingAlgorithm):
         self._env = env
         self._wifi_sim = wifi_sim
         self._roam_alg = roam_alg

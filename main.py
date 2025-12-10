@@ -4,7 +4,7 @@ import numpy as np
 from roaming.utils import TupleRC, NetworkConfig, WifiParams
 from roaming.plotter import MapPlotter
 from roaming.roaming import DistanceRoaming, RSSIRoamingAlgorithm
-from roaming.environment import WifiSimulator, MapLoader, WifiMetric, WifiStat
+from roaming.environment import SimpleWifiEnv, MapWifiEnv, WifiMetric, WifiStat
 from roaming.trajectory import TrajectorySimulator, SimConfig
 import logging
 
@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 DATA_FOLDER = "data"
+CACHE_FOLDER = "cache"
+
 EXP_NAME = "test_ns3_maps"
 SIMULATION_SEED = 2
 
@@ -48,23 +50,23 @@ def main():
     logging.basicConfig(level=logging.INFO)
     logging.info("Starting simulation")
 
-    FMAP09 = "./data/map_test/simulations/2d-test_maps/maps/latency_avg/map_09.csv"
-    FMAP16 = "./data/map_test/simulations/2d-test_maps/maps/latency_avg/map_16.csv"
-    FMAP17 = "./data/map_test/simulations/2d-test_maps/maps/latency_avg/map_17.csv"
 
-    map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
-    if not map_plt.load_from_file():
-        # wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
-        wifi_sim = MapLoader(net_conf=NET_CONFIG)
-        wifi_sim.load_maps(
-            wifi_metric=WifiMetric.LATENCY,
-            wifi_stats=WifiStat.MEAN,
-            map_files=[FMAP16, FMAP16, FMAP17, FMAP17, FMAP17]*5
-        )
-        map_plt.set_simulator(wifi_sim)
-    if not map_plt.map_loaded:
-        map_plt.generate_maps(num_samples=10, save=False)
-    map_plt.plot_maps()
+    wifi_env = MapWifiEnv(net_conf=NET_CONFIG, data_dir=DATA_FOLDER, cache_dir=CACHE_FOLDER, seed=SIMULATION_SEED)
+    wifi_env.load_datasets(datasets=[("handover", "map_0")]*2 + [("handover", "map_1")]*3)
+
+    # map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
+    # if not map_plt.load_from_file():
+    #     # wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
+    #     wifi_sim = MapLoader(net_conf=NET_CONFIG)
+    #     wifi_sim.load_maps(
+    #         wifi_metric=WifiMetric.LATENCY,
+    #         wifi_stats=WifiStat.MEAN,
+    #         map_files=[FMAP16, FMAP16, FMAP17, FMAP17, FMAP17]*5
+    #     )
+    #     map_plt.set_simulator(wifi_sim)
+    # if not map_plt.map_loaded:
+    #     map_plt.generate_maps(num_samples=10, save=False)
+    # map_plt.plot_maps()
 
     # wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
     # #roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_sim, roaming_time=0.2)
@@ -81,6 +83,7 @@ def main():
     # map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
     # map_plt.load_from_file()
     # map_plt.plot_maps()
+
 
 
 if __name__ == "__main__":
