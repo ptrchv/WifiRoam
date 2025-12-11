@@ -4,15 +4,15 @@ from pathlib import Path
 import copy
 import csv
 
-BASE_DIR = Path("./handover_hi_res")
+BASE_DIR = Path("./handover")
 EXP_DIR = BASE_DIR / "raw"
 
 EXP_FILE_SUFFIX = ".dat"
 EXTRACT_EXP_NUM = lambda x: int(x.name.split(".")[0].replace("db", ""))
 # EXTRACT_EXP_NUM = lambda x: int(x.name.split(".")[0].split("_")[1])
 
-EXP_FILE =  BASE_DIR / "experiments.json"                    # maps experiment file -> configuration
-CONF_FILE = BASE_DIR / "configs.json"                        # single experiments grouped by network configuration
+EXP_FILE =  BASE_DIR / "experiments.json"   # maps experiment file -> configuration
+CONF_FILE = BASE_DIR / "configs.json"       # single experiments grouped by network configuration
 DATASET_DIR = BASE_DIR / "datasets"
 
 FEATURES = {
@@ -131,25 +131,28 @@ def create_dataset_info(conf_file, dataset_dir):
             for row in file_map:
                 writer.writerow(row)
         
-        ap_pos = conf["config"]["apNodes"][0]["position"]
+        ap_pos = [(round(i["position"]["x"]), round(i["position"]["y"]), round(i["position"]["z"])) for i in conf["config"]["apNodes"]]
+        int_pos = [(round(i["position"]["x"]), round(i["position"]["y"]), round(i["position"]["z"])) for i in conf["config"]["interfererNodes"]]
+        
         info_json = {
             "range": ((min_x, max_x), (min_y, max_y)),
             "shape": (x_size, y_size),
             "step": (step_x, step_y),
-            "ap_pos": (round(ap_pos["x"]), round(ap_pos["y"]), round(ap_pos["z"]))
+            "ap_pos": ap_pos[0],
+            "int_pos": int_pos
         }
 
         with open(dataset_dir / "map_{}".format(idx) / "info.json", 'w') as f:
             json.dump(info_json, f, indent=4)
-        
+
 
 #%%
 def main():
-    extract_headers(EXP_DIR, EXP_FILE)  # extract experiment configuration for each file
+    # extract_headers(EXP_DIR, EXP_FILE)  # extract experiment configuration for each file
 
-    group_configurations(EXP_FILE, CONF_FILE)  # group single experiments by APs and interferents setup
+    # group_configurations(EXP_FILE, CONF_FILE)  # group single experiments by APs and interferents setup
 
-    create_datasets(EXP_DIR, DATASET_DIR, CONF_FILE, FEATURES) # create csvs with feature from simulation log
+    # create_datasets(EXP_DIR, DATASET_DIR, CONF_FILE, FEATURES) # create csvs with feature from simulation log
 
     create_dataset_info(CONF_FILE, DATASET_DIR) # create information files for maps
 

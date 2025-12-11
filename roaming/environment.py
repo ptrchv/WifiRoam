@@ -85,7 +85,7 @@ class SimpleWifiEnv(WifiEnvironment):
     def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
         rssi = self._calculate_rssi(sta_pos, ap, noise=0)
         latency = self._calculate_latency(rssi, self._net_conf.ap_loads[ap])
-        return {WifiMetric.RSSI : {WifiMetric.MEAN: rssi}, WifiMetric.LATENCY : {WifiMetric.MEAN: latency}}
+        return {WifiMetric.RSSI : {WifiStat.MEAN: rssi}, WifiMetric.LATENCY : {WifiStat.MEAN: latency}}
 
     def sample_tx(self, time: float | None, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
         rssi = self.calculate_rssi(sta_pos, ap, noise = np.random.normal(0, 2))
@@ -103,7 +103,6 @@ class SimpleWifiEnv(WifiEnvironment):
         data = json.loads(json_str)
         return SimpleWifiEnv(NetworkConfig(**data["net_conf"]), WifiParams(**data["wifi_params"]))
     
-    @staticmethod
     def _calculate_rssi(self, sta_pos: TupleRC, ap: int, noise: float) -> float:
         dist = np.linalg.norm(sta_pos.np_array - self._net_conf.ap_positions[ap].np_array)
         path_loss_rssi = -30 - 35 * math.log10(dist + 1)
@@ -151,7 +150,31 @@ class MapWifiEnv:
             shutil.rmtree(self._cache_path)
         else:        
             self._load_cached()
-        self._populate_cache()
+        self._populate_cache()                
+
+    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
+        pass
+
+    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
+        ds_cell = self._pos_to_ds_cell(sta_pos, ap)
+        if not ds_cell:
+            return None
+        ds_data, cell_pos = ds_cell
+        sample = ds_data["sample_map"][cell_pos.row][cell_pos.col].pop_left()
+        return TxInfo(acked=sample["acked"], latency=sample["latency"], num_tries=sample["retransmissions"])
+
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
+        beacon_list = []
+        for ap in range(self.n_aps):
+            ds_cell = self._pos_to_ds_cell(sta_pos, ap)
+            if ds_cell is not None:
+                ds_data, cell_pos = ds_cell
+                rssi = ds_data["metric_maps"][(WifiMetric.RSSI, WifiStat.MEAN)][cell_pos.col].pop_left()
+                snr = ds_data["metric_maps"][(WifiMetric.SNR, WifiStat.MEAN)][cell_pos.col].pop_left()
+                beacon_list.append(BeaconInfo(rssi, snr))
+            else:
+                beacon_list.append(None)
+        return beacon_list
     
     def _load_info(self, datasets: list[tuple[str, str]]):
         for sim_name, ds_name in datasets:
@@ -245,32 +268,21 @@ class MapWifiEnv:
             if df is not None:
                 samples = df.sample(self._pre_sample, random_state=self._seed)
                 samples = deque(samples.itertuples(index=False, name=None))
-                self._datasets[ds_name_full]["sample_map"][pos.row][pos.col] = samples                
+                self._datasets[ds_name_full]["sample_map"][pos.row][pos.col] = samples
 
-    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
-        pass
-
-
-    def _get_metric(self, pos: TupleRC, ap: int, wifi_metric: WifiMetric, wifi_stats: WifiStat):
+    def _pos_to_ds_cell(self, pos: TupleRC, ap: int):
         ds_name_full = self._ap_dataset[ap]
         ds_data = self._datasets[ds_name_full]
-        m_map = ds_data["metric_maps"][wifi_metric, wifi_stats]
 
         ap_pos = self._net_conf.ap_positions[ap]
-        ap_pos_map = TupleRC(ds_data["info"]["ap_pos"][0], ds_data["info"]["ap_pos"][1])        
-        cell_pos = ((pos-ap_pos+ap_pos_map) / 2.5).round()
+        ap_pos_map = TupleRC(ds_data["info"]["ap_pos"][0], ds_data["info"]["ap_pos"][1])
+        step = TupleRC(ds_data["info"]["step"][0], ds_data["info"]["step"][1])
+        shape = TupleRC(ds_data["info"]["shape"][0], ds_data["info"]["shape"][1])
 
-        if 0 < cell_pos.row < m_map.shape[0] and 0 < cell_pos.col < m_map.shape[1]:
-            return m_map[cell_pos.row, cell_pos.col]
-        return np.nan
-    
+        cell_pos = pos-ap_pos+ap_pos_map
+        cell_pos.row = round(cell_pos.row / step.row)
+        cell_pos.col = round(cell_pos.col / step.col)
 
-    
-    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
-        rssi = self._get_metric(sta_pos, ap, WifiMetric.RSSI, WifiStat.MEAN)
-        latency = self._get_metric(sta_pos, ap, WifiMetric.LATENCY, WifiStat.MEAN)
-        return rssi, latency
-
-
-    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[float]:
-        pass
+        if 0 < cell_pos.row < shape[0] and 0 < cell_pos.col < shape[1]:
+            return ds_data, cell_pos
+        return None

@@ -51,22 +51,16 @@ def main():
     logging.info("Starting simulation")
 
 
-    wifi_env = MapWifiEnv(net_conf=NET_CONFIG, data_dir=DATA_FOLDER, cache_dir=CACHE_FOLDER, seed=SIMULATION_SEED)
-    wifi_env.load_datasets(datasets=[("handover", "map_0")]*2 + [("handover", "map_1")]*3)
+    # wifi_env = MapWifiEnv(net_conf=NET_CONFIG, data_dir=DATA_FOLDER, cache_dir=CACHE_FOLDER, seed=SIMULATION_SEED)
+    # wifi_env.load_datasets(datasets=[("handover", "map_0")]*2 + [("handover", "map_1")]*3)
 
-    # map_plt = MapPlotter(data_dir=DATA_FOLDER, exp_name=EXP_NAME)
-    # if not map_plt.load_from_file():
-    #     # wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
-    #     wifi_sim = MapLoader(net_conf=NET_CONFIG)
-    #     wifi_sim.load_maps(
-    #         wifi_metric=WifiMetric.LATENCY,
-    #         wifi_stats=WifiStat.MEAN,
-    #         map_files=[FMAP16, FMAP16, FMAP17, FMAP17, FMAP17]*5
-    #     )
-    #     map_plt.set_simulator(wifi_sim)
-    # if not map_plt.map_loaded:
-    #     map_plt.generate_maps(num_samples=10, save=False)
-    # map_plt.plot_maps()
+    map_plt = MapPlotter(cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
+    if not map_plt.load_from_file():
+        wifi_env = SimpleWifiEnv(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
+        map_plt.set_simulator(wifi_env)
+    if not map_plt.map_loaded:
+        map_plt.generate_maps(save=False)
+    map_plt.plot_maps()
 
     # wifi_sim = WifiSimulator(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
     # #roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_sim, roaming_time=0.2)

@@ -7,16 +7,17 @@ class NoDataException(Exception):
 
 class WifiMetric(Enum):
     RSSI = 1
-    LATENCY = 2
-    NUM_TRIES = 3
-    PLR = 4
+    SNR = 2
+    LATENCY = 3
+    NUM_TRIES = 4
+    PLR = 5
 
 class WifiStat(Enum):    
     MEAN = 1
     MIN = 2
     PERC_99 = 3
     PERC_99_9 = 4
-    NONE = 5    
+    NONE = 5
 
 def remove_dropped(data):
     data = [row for row in data if row["acked"] == True]
@@ -39,7 +40,11 @@ METRICS_INFO = {
         "scaling": 1,
     },
     WifiMetric.RSSI: {
-        "label": "dbm (%)",
+        "label": "dbm",
+        "scaling": 1,
+    },
+    WifiMetric.SNR: {
+        "label": "dbm",
         "scaling": 1,
     }
 }
@@ -67,5 +72,8 @@ METRICS_FN = {
     },
     WifiMetric.RSSI: {
         WifiStat.MEAN: lambda data: np.mean(data["rssi"].values),
+    },
+    WifiMetric.SNR: {
+        WifiStat.MEAN: lambda data: np.mean((data["rssi"] - data["noise"]).values),
     }
 }
