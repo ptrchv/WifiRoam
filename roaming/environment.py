@@ -8,7 +8,7 @@ from pathlib import Path
 import csv
 from collections import deque
 import pickle
-from roaming.metrics import WifiMetric, WifiStat, METRICS_FN
+from roaming.metrics import WifiMetric, WifiStat, METRICS_FN, DsField
 import numpy as np
 import itertools
 import shutil
@@ -19,6 +19,7 @@ class TxInfo:
     acked: bool
     latency: float
     num_tries: int
+    rssi: float
 
 
 @dataclass
@@ -57,7 +58,7 @@ class WifiEnvironment(ABC):
         pass
 
     @abstractmethod
-    def sample_beacons(self, time: float, sta_pos: TupleRC) -> BeaconInfo:
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
         pass
 
 
@@ -87,16 +88,17 @@ class SimpleWifiEnv(WifiEnvironment):
         latency = self._calculate_latency(rssi, self._net_conf.ap_loads[ap])
         return {WifiMetric.RSSI : {WifiStat.MEAN: rssi}, WifiMetric.LATENCY : {WifiStat.MEAN: latency}}
 
-    def sample_tx(self, time: float | None, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
-        rssi = self.calculate_rssi(sta_pos, ap, noise = np.random.normal(0, 2))
-        lat = self.calculate_latency(rssi, self._net_conf.ap_loads[ap])
-        return rssi, lat
+    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> TxInfo:
+        rssi = self._calculate_rssi(sta_pos, ap, noise = np.random.normal(0, 2))
+        lat = self._calculate_latency(rssi, self._net_conf.ap_loads[ap])
+        return TxInfo(acked=True, latency=lat, num_tries=None, rssi=rssi)
     
-    def sample_beacons(self, time: float, sta_pos) -> list[float]:
-        return [self.calculate_rssi(sta_pos, ap) for ap in range(self.n_aps)]
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
+        rssi_list = [self._calculate_rssi(sta_pos, ap, noise = np.random.normal(0, 2)) for ap in range(self.n_aps)]
+        return [BeaconInfo(rssi=rssi, snr=None) for rssi in rssi_list]
 
     def to_json(self) -> str:
-        return json.dumps({"net_conf": asdict(self._net_conf), "wifi_params": asdict(self._wifi_params)})    
+        return json.dumps({"net_conf": asdict(self._net_conf), "wifi_params": asdict(self._wifi_params)})
 
     @staticmethod
     def from_json(json_str: str):
@@ -142,7 +144,7 @@ class MapWifiEnv:
     
     @property
     def metrics(self):
-        return {metric: {stat for stat in stats} for metric, stats in METRICS_FN.items()}    
+        return {metric: {stat for stat in stats} for metric, stats in METRICS_FN.items()}
 
     def load_datasets(self, datasets: list[tuple[str, str]], pre_sample = 1000, use_cache=True):
         self._load_info(datasets)
@@ -153,15 +155,30 @@ class MapWifiEnv:
         self._populate_cache()                
 
     def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
-        pass
+        ds_cell = self._pos_to_ds_cell(sta_pos, ap)
+        if not ds_cell:
+            return None
+        pos_metrics = {}
+        ds_data, cell_pos = ds_cell
+        for metric_full, m_map in ds_data["metric_maps"].items():
+            metric, stat = metric_full
+            if metric not in pos_metrics:
+                pos_metrics[metric] = {}
+            pos_metrics[metric][stat] = m_map[cell_pos.row, cell_pos.col]
+        return pos_metrics
 
-    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> tuple[float, float]:
+    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> TxInfo:
         ds_cell = self._pos_to_ds_cell(sta_pos, ap)
         if not ds_cell:
             return None
         ds_data, cell_pos = ds_cell
-        sample = ds_data["sample_map"][cell_pos.row][cell_pos.col].pop_left()
-        return TxInfo(acked=sample["acked"], latency=sample["latency"], num_tries=sample["retransmissions"])
+        sample = ds_data["sample_map"][cell_pos.row][cell_pos.col].popleft()
+        return TxInfo(
+            acked=sample[int(DsField.acked)],
+            latency=sample[int(DsField.latency)],
+            num_tries=sample[int(DsField.transmissions)],
+            rssi = sample[int(DsField.rssi)]
+        )
 
     def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
         beacon_list = []
@@ -169,8 +186,8 @@ class MapWifiEnv:
             ds_cell = self._pos_to_ds_cell(sta_pos, ap)
             if ds_cell is not None:
                 ds_data, cell_pos = ds_cell
-                rssi = ds_data["metric_maps"][(WifiMetric.RSSI, WifiStat.MEAN)][cell_pos.col].pop_left()
-                snr = ds_data["metric_maps"][(WifiMetric.SNR, WifiStat.MEAN)][cell_pos.col].pop_left()
+                rssi = ds_data["metric_maps"][(WifiMetric.RSSI, WifiStat.MEAN)][cell_pos.row, cell_pos.col]
+                snr = ds_data["metric_maps"][(WifiMetric.SNR, WifiStat.MEAN)][cell_pos.row, cell_pos.col]
                 beacon_list.append(BeaconInfo(rssi, snr))
             else:
                 beacon_list.append(None)
@@ -273,16 +290,17 @@ class MapWifiEnv:
     def _pos_to_ds_cell(self, pos: TupleRC, ap: int):
         ds_name_full = self._ap_dataset[ap]
         ds_data = self._datasets[ds_name_full]
-
         ap_pos = self._net_conf.ap_positions[ap]
+        
         ap_pos_map = TupleRC(ds_data["info"]["ap_pos"][0], ds_data["info"]["ap_pos"][1])
         step = TupleRC(ds_data["info"]["step"][0], ds_data["info"]["step"][1])
+        map_origin = TupleRC(ds_data["info"]["range"][0][0], ds_data["info"]["range"][1][0])
         shape = TupleRC(ds_data["info"]["shape"][0], ds_data["info"]["shape"][1])
 
-        cell_pos = pos-ap_pos+ap_pos_map
+        cell_pos = pos-ap_pos+ap_pos_map-map_origin
         cell_pos.row = round(cell_pos.row / step.row)
         cell_pos.col = round(cell_pos.col / step.col)
 
-        if 0 < cell_pos.row < shape[0] and 0 < cell_pos.col < shape[1]:
+        if 0 < cell_pos.row < shape.row and 0 < cell_pos.col < shape.col:
             return ds_data, cell_pos
         return None

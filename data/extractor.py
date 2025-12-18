@@ -1,4 +1,3 @@
-#%%
 import json
 from pathlib import Path
 import copy
@@ -146,13 +145,12 @@ def create_dataset_info(conf_file, dataset_dir):
             json.dump(info_json, f, indent=4)
 
 
-#%%
 def main():
-    # extract_headers(EXP_DIR, EXP_FILE)  # extract experiment configuration for each file
+    extract_headers(EXP_DIR, EXP_FILE)  # extract experiment configuration for each file
 
-    # group_configurations(EXP_FILE, CONF_FILE)  # group single experiments by APs and interferents setup
+    group_configurations(EXP_FILE, CONF_FILE)  # group single experiments by APs and interferents setup
 
-    # create_datasets(EXP_DIR, DATASET_DIR, CONF_FILE, FEATURES) # create csvs with feature from simulation log
+    create_datasets(EXP_DIR, DATASET_DIR, CONF_FILE, FEATURES) # create csvs with feature from simulation log
 
     create_dataset_info(CONF_FILE, DATASET_DIR) # create information files for maps
 

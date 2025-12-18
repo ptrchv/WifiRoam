@@ -49,12 +49,16 @@ class MapPlotter:
         self._mat_rssi[:] = np.nan
         self._mat_lat[:] = np.nan
         for ap in range(self._wifi_sim.n_aps):
-            print("Simulating AP {} in {}".format(ap,self._wifi_sim.ap_positions[ap]))
+            #print("Simulating AP {} in {}".format(ap,self._wifi_sim.ap_positions[ap]))
             for row in range(0, map_rows):
                 for col in range(0, map_cols):
                     metrics = self._wifi_sim.get_metrics(sta_pos=TupleRC(row, col), ap=ap)
-                    self._mat_rssi[ap, row, col] = metrics[WifiMetric.RSSI][WifiStat.MEAN]
-                    self._mat_lat[ap, row, col] = metrics[WifiMetric.LATENCY][WifiStat.MEAN]
+                    if metrics is None:
+                        self._mat_rssi[ap, row, col] = np.nan
+                        self._mat_lat[ap, row, col] = np.nan
+                    else:
+                        self._mat_rssi[ap, row, col] = metrics[WifiMetric.RSSI][WifiStat.MEAN]
+                        self._mat_lat[ap, row, col] = metrics[WifiMetric.LATENCY][WifiStat.MEAN]
 
         if save:
             with open(self._cache_dir / "config.json", "w") as f:
@@ -69,7 +73,7 @@ class MapPlotter:
             raise ValueError("Maps not generated yet.")
         fig_dict = {}
         
-        plot_dir = (self._cache_dir / "plots")
+        plot_dir = self._cache_dir / ("plots" if not trajectory else "plots_trj") 
         plot_dir.mkdir(parents=True, exist_ok=True)
     
         mat_rssi_best = np.nanmax(self._mat_rssi, axis=0)

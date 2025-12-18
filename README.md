@@ -1,5 +1,26 @@
 # WifiRoaming
 
+## plt() show with Remote-SSH (VSCode)
+Check on server if X11Forwarding is enabled (`X11Forwarding yes`):
+
+```bash
+vim /etc/ssh/sshd_config
+# uncomment "X11Forwarding yes"
+```
+
+Enable X11Forwarding on client connection (add `ForwardX11 yes` in host configuration):
+```bash
+vim ~/.ssh/config
+# add `ForwardX11 yes` in host configuration
+```
+
+Install PyQt5 on server to fix warning (possibly in virtual environment):
+```bash
+python -m pip install PyQt5
+```
+
+
+
 
 # Material
 - [DAWN in Open WRT](https://openwrt.org/docs/guide-user/network/wifi/dawn)
