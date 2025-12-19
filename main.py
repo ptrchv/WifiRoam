@@ -63,8 +63,8 @@ def main():
         map_plt.generate_maps(save=False)
     # map_plt.plot_maps()
 
-    roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_env, roaming_time=0.2)
-    #roam_alg = RSSIRoamingAlgorithm(env=env, wifi_sim=wifi_env, roaming_time=0.2, rssi_threshold=-90)
+    #roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_env, roaming_time=0.2)
+    roam_alg = RSSIRoamingAlgorithm(env=env, wifi_sim=wifi_env, roaming_time=0.2, rssi_threshold=-80)
 
     sim_config = SimConfig(pkt_period=0.1, speed=0.5, beacon_time=0.1)
     traj_sim = TrajectorySimulator(env=env, wifi_sim=wifi_env, roam_alg=roam_alg, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)

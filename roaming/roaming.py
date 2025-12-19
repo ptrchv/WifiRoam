@@ -39,7 +39,7 @@ class RoamingAlgorithm(ABC):
     
     def notify_beacon(self, pos, beacons) -> None:
         # disconnection after three missed beacons
-        if beacons is None and self._state == RoamingState.CONNECTED:
+        if self._state == RoamingState.CONNECTED and beacons[self._ap] is None:
             print("missed beacons")
             self._missed_beacons += 1
             if self._missed_beacons >= 3:
@@ -66,6 +66,7 @@ class RoamingAlgorithm(ABC):
     def _disconnect(self) -> None:
         logger.info("Disconnected from AP {}".format(self._ap))
         self._state = RoamingState.DISCONNECTED
+        self._ap = None
         self._missed_beacons = 0
 
 
@@ -91,7 +92,7 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
     def __init__(self, env, wifi_sim, roaming_time, rssi_threshold):
         super().__init__(env, wifi_sim, roaming_time)
         self._rssi_threshold = rssi_threshold
-        self._rssi_list = None
+        self._rssi_list = [None]*self._wifi_sim.n_aps
         self._bad_beacons = 0
     
     def notify_beacon(self, pos, beacons):
@@ -99,17 +100,14 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
         super().notify_beacon(pos, beacons)
 
         # update rssi list if beacon is received
-        rssi_list = [binfo.rssi for binfo in beacons] if beacons else None
-        if rssi_list is not None:
-            self._rssi_list = rssi_list
+        self._rssi_list = [binfo.rssi if binfo is not None else None for binfo in beacons]
         
         # if connected, if last three beacons were bad, roam
         if self._state == RoamingState.CONNECTED:
-            if rssi_list is None or rssi_list[self._ap] < self._rssi_threshold:
+            if self._rssi_list[self._ap] is None or self._rssi_list[self._ap] < self._rssi_threshold:
                 self._bad_beacons += 1
                 if self._bad_beacons >= 3:
-                    if self._rssi_list is not None:
-                        print(rssi_list)
+                    if any([rssi is not None for rssi in self._rssi_list]):
                         logger.info("Reached max bad beacons")
                         self._roam(self._get_best_ap())
                         self._bad_beacons = 0
@@ -124,4 +122,4 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
         pass
 
     def _get_best_ap(self):
-        return self._rssi_list.index(max(self._rssi_list))
+        return self._rssi_list.index(max([rssi for rssi in self._rssi_list if rssi is not None]))

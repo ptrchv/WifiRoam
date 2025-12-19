@@ -58,7 +58,7 @@ class WifiEnvironment(ABC):
         pass
 
     @abstractmethod
-    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo | None]:
         pass
 
 
@@ -93,7 +93,7 @@ class SimpleWifiEnv(WifiEnvironment):
         lat = self._calculate_latency(rssi, self._net_conf.ap_loads[ap])
         return TxInfo(acked=True, latency=lat, num_tries=None, rssi=rssi)
     
-    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo | None]:
         rssi_list = [self._calculate_rssi(sta_pos, ap, noise = np.random.normal(0, 2)) for ap in range(self.n_aps)]
         return [BeaconInfo(rssi=rssi, snr=None) for rssi in rssi_list]
 
@@ -167,12 +167,15 @@ class MapWifiEnv:
             pos_metrics[metric][stat] = m_map[cell_pos.row, cell_pos.col]
         return pos_metrics
 
-    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> TxInfo:
+    def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> TxInfo | None:
         ds_cell = self._pos_to_ds_cell(sta_pos, ap)
-        if not ds_cell:
+        if ds_cell is None:
             return None
         ds_data, cell_pos = ds_cell
-        sample = ds_data["sample_map"][cell_pos.row][cell_pos.col].popleft()
+        samples = ds_data["sample_map"][cell_pos.row][cell_pos.col]
+        if samples is None:
+            return None
+        sample = samples.popleft()
         return TxInfo(
             acked=sample[int(DsField.acked)],
             latency=sample[int(DsField.latency)],
@@ -180,7 +183,7 @@ class MapWifiEnv:
             rssi = sample[int(DsField.rssi)]
         )
 
-    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo]:
+    def sample_beacons(self, time: float, sta_pos: TupleRC) -> list[BeaconInfo | None]:
         beacon_list = []
         for ap in range(self.n_aps):
             ds_cell = self._pos_to_ds_cell(sta_pos, ap)
