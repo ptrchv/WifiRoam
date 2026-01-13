@@ -104,7 +104,8 @@ class TrajectorySimulator:
         with open("{}/trajectory.csv".format(self._cache_dir), "w") as f:
             writer = csv.DictWriter(f, fieldnames=[f.name for f in fields(TrajectorySimulator.TrajEntry)])
             writer.writeheader()
-            writer.writerows(asdict(entry) for entry in self._state.dataset)
+            writer.writerows(asdict(entry) for entry in self._state.dataset)        
+        #self._compute_statistics()
             
     def _simulate_beacons(self):
         while self._update_position():
@@ -135,3 +136,7 @@ class TrajectorySimulator:
     def _gen_pos(self):
         dims = self._wifi_sim.map_dims
         return TupleRC(random.randint(0, dims.row - 1), random.randint(0, dims.col - 1))
+    
+    # def _compute_statistics(self):
+    #     df = pd.read_csv("{}/trajectory.csv".format(self._cache_dir))
+    #     print(df["state"].value_counts())

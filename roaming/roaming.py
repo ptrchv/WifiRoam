@@ -40,7 +40,7 @@ class RoamingAlgorithm(ABC):
     def notify_beacon(self, pos, beacons) -> None:
         # disconnection after three missed beacons
         if self._state == RoamingState.CONNECTED and beacons[self._ap] is None:
-            print("missed beacons")
+            logging.info("Missed beacons")
             self._missed_beacons += 1
             if self._missed_beacons >= 3:
                 self._disconnect()

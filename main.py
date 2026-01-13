@@ -48,34 +48,32 @@ def main():
 
     # Enable logging
     logging.basicConfig(level=logging.INFO)
-    logging.info("Starting simulation")
 
     # Create wifi environment
+    # wifi_env = SimpleWifiEnv(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
     wifi_env = MapWifiEnv(net_conf=NET_CONFIG, data_dir=DATA_FOLDER, cache_dir=CACHE_FOLDER, seed=SIMULATION_SEED)
     wifi_env.load_datasets(datasets=[("handover_hi_res", "map_0")]*2 + [("handover_hi_res", "map_1")]*3)
 
-
-    map_plt = MapPlotter(cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
-    if not map_plt.load_from_file():
-        #wifi_env = SimpleWifiEnv(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
-        map_plt.set_simulator(wifi_env)
-    if not map_plt.map_loaded:
-        map_plt.generate_maps(save=False)
-    # map_plt.plot_maps()
-
+    # Create roaming algorithm
     #roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_env, roaming_time=0.2)
     roam_alg = RSSIRoamingAlgorithm(env=env, wifi_sim=wifi_env, roaming_time=0.2, rssi_threshold=-80)
 
+    # Create trajectory simulator
     sim_config = SimConfig(pkt_period=0.1, speed=0.5, beacon_time=0.1)
     traj_sim = TrajectorySimulator(env=env, wifi_sim=wifi_env, roam_alg=roam_alg, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
     traj_sim.generate_trajectory(50)
     traj_sim.configure(sim_config)
+
+    #traj_sim._compute_statistics()
+
+    logging.info("Starting simulation")
     env.run()
+    logging.info("Simulation Ended")
 
-    # print(wifi_sim.ap_positions)
-
+    # logging.info("Started interactive plotting")
+    map_plt = MapPlotter(wifi_sim=wifi_env, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
+    map_plt.generate_maps()
     map_plt.plot_maps(trajectory=True)
-
 
 if __name__ == "__main__":
     main()
@@ -86,8 +84,8 @@ if __name__ == "__main__":
 # X create wifi environment that loads ns-3 maps (aggregated)
 # X understand how to compute SNR/RSSI
 # X simulate map in ns-3
+# X try roaming algorithms on ns-3 maps
 
-# try roaming algorithms on ns-3 maps
 # fix structure of cache folder (common/experiments)
 # add metric computation from simulated trajectory
 # implement optimal switching technique
@@ -96,3 +94,5 @@ if __name__ == "__main__":
 
 # add type hints to functions
 # fix logging messages
+# fix configuration
+# implement additional roaming algorithm

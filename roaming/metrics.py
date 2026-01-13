@@ -57,8 +57,6 @@ class DsField(IntEnum):
     rssi = 4
     noise = 5
 
-
-
 def remove_dropped(data):
     data = data[data[DsField.acked.name] == True]
     if data.empty:

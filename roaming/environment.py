@@ -1,3 +1,4 @@
+import logging
 import math
 import pandas as pd
 import json
@@ -12,6 +13,8 @@ from roaming.metrics import WifiMetric, WifiStat, METRICS_FN, DsField
 import numpy as np
 import itertools
 import shutil
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,7 +53,7 @@ class WifiEnvironment(ABC):
         pass
     
     @abstractmethod
-    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
+    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float|None]]:
         pass
 
     @abstractmethod
@@ -83,7 +86,7 @@ class SimpleWifiEnv(WifiEnvironment):
     def metrics(self) -> dict[WifiMetric, set[WifiStat]]:
         return {WifiMetric.RSSI : {WifiStat.MEAN}, WifiMetric.LATENCY: {WifiStat.MEAN}}
     
-    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
+    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float|None]]:
         rssi = self._calculate_rssi(sta_pos, ap, noise=0)
         latency = self._calculate_latency(rssi, self._net_conf.ap_loads[ap])
         return {WifiMetric.RSSI : {WifiStat.MEAN: rssi}, WifiMetric.LATENCY : {WifiStat.MEAN: latency}}
@@ -148,13 +151,14 @@ class MapWifiEnv:
 
     def load_datasets(self, datasets: list[tuple[str, str]], pre_sample = 1000, use_cache=True):
         self._load_info(datasets)
-        if not use_cache and self._cache_path.exists():
-            shutil.rmtree(self._cache_path)
-        else:        
+        if use_cache:
             self._load_cached()
+        elif self._cache_path.exists():
+            logger.info("Removing cached datasets")
+            shutil.rmtree(self._cache_path)
         self._populate_cache()                
 
-    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float]]:
+    def get_metrics(self, sta_pos: TupleRC, ap: int) -> dict[WifiMetric, dict[WifiStat, int|float|None]]:
         ds_cell = self._pos_to_ds_cell(sta_pos, ap)
         if not ds_cell:
             return None
@@ -164,7 +168,8 @@ class MapWifiEnv:
             metric, stat = metric_full
             if metric not in pos_metrics:
                 pos_metrics[metric] = {}
-            pos_metrics[metric][stat] = m_map[cell_pos.row, cell_pos.col]
+            val = m_map[cell_pos.row, cell_pos.col]
+            pos_metrics[metric][stat] = float(val) if not np.isnan(val) else None
         return pos_metrics
 
     def sample_tx(self, time: float, sta_pos: TupleRC, ap: int) -> TxInfo | None:
@@ -191,7 +196,10 @@ class MapWifiEnv:
                 ds_data, cell_pos = ds_cell
                 rssi = ds_data["metric_maps"][(WifiMetric.RSSI, WifiStat.MEAN)][cell_pos.row, cell_pos.col]
                 snr = ds_data["metric_maps"][(WifiMetric.SNR, WifiStat.MEAN)][cell_pos.row, cell_pos.col]
-                beacon_list.append(BeaconInfo(rssi, snr))
+                if not np.isnan(rssi) and not np.isnan(snr):
+                    beacon_list.append(BeaconInfo(rssi, snr))
+                else:
+                    beacon_list.append(None)
             else:
                 beacon_list.append(None)
         return beacon_list
@@ -230,6 +238,7 @@ class MapWifiEnv:
         m_stats = set(itertools.chain.from_iterable(m_stats))
         
         for ds_name_full, ds_data in self._datasets.items():
+            logger.info("Caching dataset: {}".format(ds_name_full))
             fmap = ds_data["fmap"]
             info = ds_data["info"]
             metric_maps = ds_data["metric_maps"]
@@ -272,7 +281,6 @@ class MapWifiEnv:
         if fname is not None:
             sim_name, ds_name = ds_name_full
             df = pd.read_csv(self._data_dir / sim_name / "datasets" / ds_name / "data" / fname)
-            df = df.set_index("seq")
             if df.empty:
                 df = None
 
