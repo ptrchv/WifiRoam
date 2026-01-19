@@ -39,8 +39,6 @@ WIFI_PARAMS = WifiParams (
     no_ap_penalty = 2000,
 )
 
-
-# %%
 def main():
     # Simulation seed for reproducibility
     random.seed(SIMULATION_SEED)
@@ -89,24 +87,31 @@ if __name__ == "__main__":
 
 
 # TODO list
+
+# GENERAL
 # fix structure of cache folder (common/experiments)
 # fix RSSI simulator (to avoid switching when also other APs are bad)
 # add type hints to functions
 # fix logging messages
 # fix configuration
-# sfasare beacons rispetto a messaggi
+# sfasare beacons rispetto ai messaggi (gaussian distribution)
 
 # implement packet queuing when when you roam or disconnect (for more realistic latency) -> useful also if optimizing another metric
 # latency is a problem since if is hard to re-compute averages and percentiles -> you could limit the number of switches
 
+# OPTIMAL ROAMING
+# find number of aps on the path
+# you optimize the metric and limit the number of switches
+# do not switch a number of times greater than the number of APs - 1
+# find the best switching combination (number of times from 0 to max)
+# swithing point not too close together
+# - can be done via tree exploration
+# - but should be taken into account by switch number limitation (time to reach lower than roaming time)
 
-# OPTIMAL ROAMING improvements
-# for every switch point decide whether to switch
-    # - (you can put limit on switches)
-# you need to take into account
-# - lost packets due to switch
-# - remove switch point that may be too close if you select one (time to reach lower than roaming time)
-# search is like exploring a tree (where you have a counter on the number of switches)
+# decide whether to queue or drop packets generated during roaming (now is drop)
+# specify min, max for the optimization metric
+# check behavior on disconnections
+
 # if too many switch set a threshold for minimum metrics different that may consider the need of switching
 # add events for roaming on the path (roaming period can be placed in between, packets, to avoid having lost packets)
 # queue dropped packets during roaming
