@@ -73,11 +73,12 @@ def main():
     traj_sim.generate_trajectory(50)
     traj_sim.configure()
 
+    # Run simulation
     logging.info("Starting simulation")
     env.run()
     logging.info("Simulation Ended")
 
-    # logging.info("Started interactive plotting")
+    # Trajectory plots
     map_plt = MapPlotter(wifi_sim=wifi_env, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
     map_plt.generate_maps()
     map_plt.plot_maps(trajectory=True)
@@ -88,39 +89,18 @@ if __name__ == "__main__":
 
 
 # TODO list
-
-# X create wifi environment that loads ns-3 maps (aggregated)
-# X understand how to compute SNR/RSSI
-# X simulate map in ns-3
-# X try roaming algorithms on ns-3 maps
-
 # fix structure of cache folder (common/experiments)
-# add metric computation from simulated trajectory
-# implement optimal switching technique
-
 # fix RSSI simulator (to avoid switching when also other APs are bad)
-
 # add type hints to functions
 # fix logging messages
 # fix configuration
-# implement additional roaming algorithm
-
 # sfasare beacons rispetto a messaggi
 
-# OptiamalRoaming
 # implement packet queuing when when you roam or disconnect (for more realistic latency) -> useful also if optimizing another metric
 # latency is a problem since if is hard to re-compute averages and percentiles -> you could limit the number of switches
 
 
-# OPTIMAL ROAMING
-
-# X set callback to get info on new segment (you could pass sim state), or use whole trajectory
-# X evaluate points on the segment by using the defined sampling rate
-# - do not sample exact position of packets, just the map (maybe using a sampling rate double of the one of the packets)
-
-# X identify switch points
-
-
+# OPTIMAL ROAMING improvements
 # for every switch point decide whether to switch
     # - (you can put limit on switches)
 # you need to take into account
