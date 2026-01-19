@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from enum import Enum
 import logging
 
+from roaming.utils import TupleRC
+from roaming.metrics import WifiMetric, WifiStat
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,3 +126,65 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
 
     def _get_best_ap(self):
         return self._rssi_list.index(max([rssi for rssi in self._rssi_list if rssi is not None]))
+
+
+class OptimizedRoaming(RoamingAlgorithm):
+    def __init__(self, env, wifi_sim, roaming_time, metric: WifiMetric, stat: WifiStat):
+        super().__init__(env, wifi_sim, roaming_time)
+        self._metric = metric
+        self._stat = stat
+        # trajectory info        
+        self._traj_sim = None        
+        self._step = None
+        self._segment = None
+        # swithing info
+        self._switch_points = None
+        self._switch_aps = None
+
+    def configure(self, traj_sim):
+        self._traj_sim = traj_sim
+        self._step = (self._traj_sim.sim_config.speed * self._traj_sim.sim_config.pkt_period)
+        self._traj_sim.register_traj_change_callback(lambda segment, pos: self._traj_change_callback(segment, pos))
+
+    def notify_tx(self, pos, tx_info) -> None:
+        if self.state != RoamingState.ROAMING:
+            best_ap = self._best_ap(pos)
+            if best_ap is not None:
+                self._roam(best_ap)
+
+    def _traj_change_callback(self, pos: TupleRC, segment: tuple[TupleRC, TupleRC]):
+        self._segment = segment
+        
+        len_seg =(self._segment[1] - self._segment[0]).norm()
+        num_step = round(len_seg / (self._step / 2))
+        step_vect = (self._segment[1] - self._segment[0]) / num_step
+        positions = [self._segment[0] + step_vect * (i+1) for i in range(num_step)]
+        
+        best_aps = []
+        for p in positions:
+            metrics = [self._wifi_sim.get_metrics(p, ap) for ap in range(self._wifi_sim.n_aps)]
+            metrics = [m[self._metric][self._stat] if m is not None else None for m in metrics]
+            best_ap = metrics.index(min([m for m in metrics if m is not None]))
+            best_aps.append(best_ap)
+
+        best_aps = [self._ap] + best_aps
+        switch_idxs = [i for i in range(len(best_aps) -1) if best_aps[i] != best_aps[i+1]]
+        self._switch_points = [positions[i] for i in switch_idxs]
+        self._switch_aps = [best_aps[i+1] for i in switch_idxs]
+
+        # fix problem of first use / use when changing segment
+        if self._state != RoamingState.ROAMING:
+            best_ap = self._best_ap(pos)
+            if best_ap is not None:
+                self._roam(best_ap)
+                logger.info("roaming")
+
+    def _best_ap(self, pos) -> int | None:
+        dist_pos = (pos - self._segment[0]).norm()
+        dist_switch = [(switch_point - self._segment[0]).norm() for switch_point in self._switch_points]
+        dist_switch = [(idx, dist) for idx, dist in enumerate(dist_switch) if dist>=dist_pos and dist_pos+self._step >= dist and self._switch_aps[idx] != self._ap]
+        if dist_switch:
+            idx, _ = dist_switch[0]
+            return self._switch_aps[idx]
+        return None
+    

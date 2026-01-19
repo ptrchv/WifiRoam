@@ -25,7 +25,6 @@ def remove_dropped(data):
         raise NoDataException
     return data
 
-
 METRICS_INFO = {
     WifiMetric.LATENCY: {
         "label": "Latency ($\mu$s)",
