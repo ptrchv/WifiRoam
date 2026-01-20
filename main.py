@@ -57,15 +57,15 @@ def main():
 
     # Create roaming algorithm
     # roam_alg = DistanceRoaming(env=env, wifi_sim=wifi_env, roaming_time=0.2)
-    roam_alg = RSSIRoamingAlgorithm(env=env, wifi_sim=wifi_env, roaming_time=0.2, rssi_threshold=-80)
-    #roam_alg = OptimizedRoaming(env, wifi_sim=wifi_env, roaming_time=0.2, metric=WifiMetric.NUM_TRIES, stat=WifiStat.MEAN)
+    # roam_alg = RSSIRoamingAlgorithm(env=env, wifi_sim=wifi_env, roaming_time=0.2, rssi_threshold=-80)
+    roam_alg = OptimizedRoaming(env, wifi_sim=wifi_env, roaming_time=0.2, metric=WifiMetric.NUM_TRIES, stat=WifiStat.MEAN)
 
     # Create trajectory simulator
     sim_config = SimConfig(pkt_period=0.1, speed=0.5, beacon_time=0.1)
     traj_sim = TrajectorySimulator(env=env, wifi_sim=wifi_env, roam_alg=roam_alg, sim_config=sim_config, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
 
     # Set trajectory sim
-    #roam_alg.configure(traj_sim)
+    roam_alg.configure(traj_sim)
 
     # Configure trajectory simulator
     traj_sim.generate_trajectory(50)
@@ -76,10 +76,10 @@ def main():
     env.run()
     logging.info("Simulation Ended")
 
-    # Trajectory plots
-    map_plt = MapPlotter(wifi_sim=wifi_env, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
-    map_plt.generate_maps()
-    map_plt.plot_maps(trajectory=True)
+    # # Trajectory plots
+    # map_plt = MapPlotter(wifi_sim=wifi_env, cache_dir=CACHE_FOLDER, exp_name=EXP_NAME)
+    # map_plt.generate_maps()
+    # map_plt.plot_maps(trajectory=True)
 
 
 if __name__ == "__main__":
@@ -94,12 +94,14 @@ if __name__ == "__main__":
 # add type hints to functions
 # fix logging messages
 # fix configuration
-# sfasare beacons rispetto ai messaggi (gaussian distribution)
+# X sfasare beacons rispetto ai messaggi (random offset)
 
 # implement packet queuing when when you roam or disconnect (for more realistic latency) -> useful also if optimizing another metric
 # latency is a problem since if is hard to re-compute averages and percentiles -> you could limit the number of switches
 
 # OPTIMAL ROAMING
+# X uppdates on trajectory should be made every beacon time
+
 # find number of aps on the path
 # you optimize the metric and limit the number of switches
 # do not switch a number of times greater than the number of APs - 1
@@ -110,9 +112,12 @@ if __name__ == "__main__":
 
 # decide whether to queue or drop packets generated during roaming (now is drop)
 # specify min, max for the optimization metric
-# check behavior on disconnections
+# check behavior on disconnections 
 
 # if too many switch set a threshold for minimum metrics different that may consider the need of switching
 # add events for roaming on the path (roaming period can be placed in between, packets, to avoid having lost packets)
 # queue dropped packets during roaming
+
+
+
 

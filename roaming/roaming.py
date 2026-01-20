@@ -143,15 +143,19 @@ class OptimizedRoaming(RoamingAlgorithm):
 
     def configure(self, traj_sim):
         self._traj_sim = traj_sim
-        self._step = (self._traj_sim.sim_config.speed * self._traj_sim.sim_config.pkt_period)
+        self._step = (self._traj_sim.sim_config.speed * self._traj_sim.sim_config.beacon_time)
         self._traj_sim.register_traj_change_callback(lambda segment, pos: self._traj_change_callback(segment, pos))
 
     def notify_tx(self, pos, tx_info) -> None:
-        if self.state != RoamingState.ROAMING:
-            best_ap = self._best_ap(pos)
-            if best_ap is not None:
-                self._roam(best_ap)
+        pass
 
+    def notify_beacon(self, pos, beacons):
+        super().notify_beacon(pos, beacons)
+        if self.state != RoamingState.ROAMING:
+                best_ap = self._best_ap(pos)
+                if best_ap is not None:
+                    self._roam(best_ap)
+    
     def _traj_change_callback(self, pos: TupleRC, segment: tuple[TupleRC, TupleRC]):
         self._segment = segment
         

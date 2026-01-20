@@ -5,11 +5,11 @@ from dataclasses import dataclass, field, asdict, fields
 from typing import Callable
 import logging
 import simpy
-import pandas as pd
+import numpy as np
 from roaming.utils import TupleRC
 from roaming.environment import WifiEnvironment, TxInfo
 from roaming.utils import TupleRC
-from roaming.roaming import RoamingAlgorithm, RoamingState
+from roaming.roaming import RoamingAlgorithm
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +114,8 @@ class TrajectorySimulator:
             writer.writerows(asdict(entry) for entry in self._state.dataset)
             
     def _simulate_beacons(self):
+        t_out = np.random.uniform(low=0.0, high=self._config.beacon_time)
+        yield self._env.timeout(t_out)
         while self._update_position():
             beacon_info = self._wifi_sim.sample_beacons(self._state.time, self._state.pos)
             self._roam_alg.notify_beacon(self._state.pos, beacon_info)

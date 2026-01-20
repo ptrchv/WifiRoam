@@ -4,8 +4,10 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass, asdict, fields
 
+EXP = "v2_beacons"
 BASE_DIR =  Path("/home/ptrchv/repos/WifiRoaming/analysis")
-TRAJ_DIR = BASE_DIR / "trajectories"
+TRAJ_DIR = BASE_DIR / "trajectories"/ EXP
+
 
 @dataclass
 class Result:
@@ -23,9 +25,9 @@ class Result:
     pkt_disconnected: int = None
 
 # %%
-df_dist = pd.read_csv(TRAJ_DIR / "01_trajectory_distance.csv")
-df_opt = pd.read_csv(TRAJ_DIR / "01_trajectory_optimal.csv")
-df_rssi = pd.read_csv(TRAJ_DIR / "01_trajectory_rssi.csv")
+df_dist = pd.read_csv(TRAJ_DIR / "trajectory_distance.csv")
+df_opt = pd.read_csv(TRAJ_DIR / "trajectory_optimal.csv")
+df_rssi = pd.read_csv(TRAJ_DIR / "trajectory_rssi.csv")
 
 datasets = {
     "distance" :df_dist,
@@ -66,7 +68,7 @@ for name, df in datasets.items():
     df_res.loc[len(df_res)] = res_dict
 
 print(df_res)
-df_res.to_csv(BASE_DIR / "result.csv", index=False, float_format='%.4f')
+df_res.to_csv(BASE_DIR / "result_{}.csv".format(EXP), index=False, float_format='%.4f')
 
 # %%
 
