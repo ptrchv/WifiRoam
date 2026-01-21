@@ -3,7 +3,7 @@ from enum import Enum
 import logging
 
 from roaming.utils import TupleRC
-from roaming.metrics import WifiMetric, WifiStat
+from roaming.metrics import WifiMetric, WifiStat, get_comf_funct
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,8 @@ class RoamingAlgorithm(ABC):
         logger.info("Connected to to AP {}".format(self._ap))
 
     def _roam(self, ap) -> None:
-        self._ap = ap
+        self._ap = ap# Create wifi environment
+    # wifi_env = SimpleWifiEnv(net_conf=NET_CONFIG, wifi_params=WIFI_PARAMS)
         self._env.process(self._roaming_process())
 
     def _disconnect(self) -> None:
@@ -112,8 +113,10 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
                 if self._bad_beacons >= 3:
                     if any([rssi is not None for rssi in self._rssi_list]):
                         logger.info("Reached max bad beacons")
-                        self._roam(self._get_best_ap())
-                        self._bad_beacons = 0
+                        best_ap = self._get_best_ap()
+                        if best_ap != self._ap:
+                            self._roam(best_ap)
+                            self._bad_beacons = 0
             else:
                 self._bad_beacons = 0
 
@@ -129,10 +132,11 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
 
 
 class OptimizedRoaming(RoamingAlgorithm):
-    def __init__(self, env, wifi_sim, roaming_time, metric: WifiMetric, stat: WifiStat):
+    def __init__(self, env, wifi_sim, roaming_time, metric: WifiMetric, stat: WifiStat, min_switch_time=None):
         super().__init__(env, wifi_sim, roaming_time)
         self._metric = metric
         self._stat = stat
+        self._comp_f = get_comf_funct(self._metric)
         # trajectory info        
         self._traj_sim = None        
         self._step = None
@@ -140,6 +144,7 @@ class OptimizedRoaming(RoamingAlgorithm):
         # swithing info
         self._switch_points = None
         self._switch_aps = None
+        self._min_switch_time = min_switch_time
 
     def configure(self, traj_sim):
         self._traj_sim = traj_sim
@@ -160,21 +165,63 @@ class OptimizedRoaming(RoamingAlgorithm):
         self._segment = segment
         
         len_seg =(self._segment[1] - self._segment[0]).norm()
-        num_step = round(len_seg / (self._step / 2))
-        step_vect = (self._segment[1] - self._segment[0]) / num_step
-        positions = [self._segment[0] + step_vect * (i+1) for i in range(num_step)]
+        num_samples = round(len_seg / (self._step / 2))
+        step_vect = (self._segment[1] - self._segment[0]) / num_samples
+        positions = [self._segment[0] + step_vect * (i+1) for i in range(num_samples)]
         
+        # find get metrics and best ap in each trajectory point
         best_aps = []
+        pos_metrics = []
         for p in positions:
             metrics = [self._wifi_sim.get_metrics(p, ap) for ap in range(self._wifi_sim.n_aps)]
             metrics = [m[self._metric][self._stat] if m is not None else None for m in metrics]
-            best_ap = metrics.index(min([m for m in metrics if m is not None]))
+            best_ap = metrics.index(self._comp_f([m for m in metrics if m is not None]))
             best_aps.append(best_ap)
+            pos_metrics.append(metrics)
 
+        # prev_switch_time = None
+        # if self._ap is not None:
+        #     if self._switch_aps and self._switch_aps[-1] == self._ap:
+        #         prev_switch_time = ((self._switch_points[-1] - self._segment[0]).norm()) / self._traj_sim.sim_config.speed
+
+        # find switch points and switch APs
         best_aps = [self._ap] + best_aps
         switch_idxs = [i for i in range(len(best_aps) -1) if best_aps[i] != best_aps[i+1]]
         self._switch_points = [positions[i] for i in switch_idxs]
         self._switch_aps = [best_aps[i+1] for i in switch_idxs]
+
+        # remove short switching intervals
+        if self._min_switch_time is not None:
+            idx_interval = 0
+            switch_times = [(self._switch_points[i+1] - self._switch_points[i]).norm() / self._traj_sim.sim_config.speed for i in range(len(self._switch_points) -1)]
+            while idx_interval < len(switch_times):
+                if switch_times[idx_interval] < self._min_switch_time and not (idx_interval == 0 and self._ap == None):
+                    ap_prev = self._switch_aps[idx_interval -1] if idx_interval > 0 else self._ap
+                    ap_next = self._switch_aps[idx_interval + 1]
+                    pos_idx_prev = switch_idxs[idx_interval]
+                    pos_idx_next = switch_idxs[idx_interval + 1]
+                    metrics_prev = [pos_metrics[i][ap_prev] for i in range(pos_idx_prev, pos_idx_next)]
+                    metrics_next = [pos_metrics[i][ap_next] for i in range(pos_idx_prev, pos_idx_next)]
+                    avg_prev = sum(metrics_prev) / len(metrics_prev) if not any([m is None for m in metrics_prev]) else None
+                    avg_next = sum(metrics_next) / len(metrics_next) if not any([m is None for m in metrics_next]) else None
+
+                    if avg_prev is None and avg_next is None:
+                        idx_interval+=1
+                        continue
+                    if avg_prev is not None and (avg_next is None or avg_prev >= avg_next):
+                        self._switch_points.pop(idx_interval)
+                        self._switch_aps.pop(idx_interval)
+                        switch_idxs.pop(idx_interval)                        
+                    else:
+                        self._switch_aps[idx_interval] = ap_next
+                        self._switch_points.pop(idx_interval+1)
+                        self._switch_aps.pop(idx_interval+1)
+                        switch_idxs.pop(idx_interval+1)
+
+                    # update structures
+                    switch_times = [(self._switch_points[i+1] - self._switch_points[i]).norm() / self._traj_sim.sim_config.speed for i in range(len(self._switch_points) -1)]
+                else:
+                    idx_interval+=1        
 
         # fix problem of first use / use when changing segment
         if self._state != RoamingState.ROAMING:

@@ -12,12 +12,17 @@ class WifiMetric(Enum):
     NUM_TRIES = 4
     PLR = 5
 
-class WifiStat(Enum):    
+class WifiStat(Enum):
     MEAN = 1
     MIN = 2
     PERC_99 = 3
     PERC_99_9 = 4
     NONE = 5
+
+def get_comf_funct(metric):
+    if metric in {WifiMetric.RSSI, WifiMetric.PLR}:
+        return max
+    return min
 
 def remove_dropped(data):
     data = [row for row in data if row["acked"] == True]

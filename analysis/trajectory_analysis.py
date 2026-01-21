@@ -25,15 +25,10 @@ class Result:
     pkt_disconnected: int = None
 
 # %%
-df_dist = pd.read_csv(TRAJ_DIR / "trajectory_distance.csv")
-df_opt = pd.read_csv(TRAJ_DIR / "trajectory_optimal.csv")
-df_rssi = pd.read_csv(TRAJ_DIR / "trajectory_rssi.csv")
-
-datasets = {
-    "distance" :df_dist,
-    "optimal": df_opt,
-    "rssi:": df_rssi
-}
+datasets = {}
+for f in TRAJ_DIR.iterdir():
+    ds_name = "_".join(f.name.split("_")[1:])
+    datasets[ds_name] = pd.read_csv(f)
 
 # %%
 def compute_stats(df):    

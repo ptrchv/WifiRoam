@@ -89,7 +89,7 @@ class TrajectorySimulator:
             tx_info = TxInfo(acked=False, latency=None, num_tries=None, rssi=None)
             if self._roam_alg.connected:
                 tx_sample = self._wifi_sim.sample_tx(self._state.time, self._state.pos, self._roam_alg.ap)
-                tx_info = tx_sample if tx_sample is not None else tx_info            
+                tx_info = tx_sample if tx_sample is not None else tx_info
             self._state.dataset.append(
                 TrajectorySimulator.TrajEntry (
                     time = self._env.now,
