@@ -6,20 +6,12 @@ from typing import Callable
 import logging
 import simpy
 import numpy as np
-from roaming.utils import TupleRC
+from roaming.utils import TupleRC, SimConfig
 from roaming.environment import WifiEnvironment, TxInfo
 from roaming.utils import TupleRC
 from roaming.roaming import RoamingAlgorithm
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class SimConfig:
-    pkt_period: float
-    speed: float
-    beacon_time: float
-
 
 class TrajectorySimulator:
     @dataclass
@@ -45,15 +37,18 @@ class TrajectorySimulator:
         segment: int = -1        
         dataset: list = field(default_factory=list)
 
-    def __init__(self, env: simpy.Environment, wifi_sim: WifiEnvironment, roam_alg: RoamingAlgorithm, sim_config: SimConfig, cache_dir: str, exp_name: str):
+    def __init__(self, env: simpy.Environment, wifi_sim: WifiEnvironment, roam_alg: RoamingAlgorithm, sim_config: SimConfig, cache_dir: str, net_name: str):
         self._env = env
         self._wifi_sim = wifi_sim
         self._roam_alg = roam_alg
         self._config = sim_config
         self._state = None        
         self._trajectory = []
-        self._cache_dir =  Path(cache_dir) / exp_name
+        self._cache_dir =  Path(cache_dir) / "nets" / net_name
         self._traj_change_callbacks = []
+        self._traj_num = None
+        self._generate_trajectory()
+        self._configure()
 
     @property
     def trajectory(self):
@@ -63,16 +58,20 @@ class TrajectorySimulator:
     def sim_config(self):
         return self._config
     
-    def generate_trajectory(self, num_segments: int):
-        self._trajectory = [self._gen_pos() for _ in range(num_segments + 1)]
+    @property
+    def traj_num(self) -> int | None:
+        return self._traj_num
+    
+    def register_traj_change_callback(self, callback: Callable[[TupleRC, tuple[TupleRC, TupleRC]], None]):
+        self._traj_change_callbacks.append(callback)
+    
+    def _generate_trajectory(self):
+        self._trajectory = [self._gen_pos() for _ in range(self._config.trajectory_len + 1)]
 
-    def configure(self):
+    def _configure(self):
         self._setup_sim()
         self._env.process(self._simulate_traffic())
         self._env.process(self._simulate_beacons())
-
-    def register_traj_change_callback(self, callback: Callable[[TupleRC, tuple[TupleRC, TupleRC]], None]):
-        self._traj_change_callbacks.append(callback)
 
     def _setup_sim(self):
         if not self._trajectory:
@@ -85,6 +84,7 @@ class TrajectorySimulator:
     
     def _simulate_traffic(self):
         # Simulation loop
+        yield self._env.timeout(self._config.tx_start_time)
         while self._update_position():
             tx_info = TxInfo(acked=False, latency=None, num_tries=None, rssi=None)
             if self._roam_alg.connected:
@@ -107,8 +107,11 @@ class TrajectorySimulator:
             )
             self._roam_alg.notify_tx(self._state.pos, tx_info)
             yield self._env.timeout(self._config.pkt_period)
-            
-        with open("{}/trajectory.csv".format(self._cache_dir), "w") as f:
+        
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        traj_nums = [int(f.name.split("_")[0]) for f in self._cache_dir.iterdir() if f.is_file()]
+        self._traj_num = max(traj_nums) + 1 if traj_nums else 0
+        with open(self._cache_dir / "{:02d}_trajectory.csv".format(self._traj_num), "w") as f:
             writer = csv.DictWriter(f, fieldnames=[f.name for f in fields(TrajectorySimulator.TrajEntry)])
             writer.writeheader()
             writer.writerows(asdict(entry) for entry in self._state.dataset)

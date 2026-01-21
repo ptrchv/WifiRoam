@@ -13,8 +13,8 @@ class MapPlotter:
     CMAPS = [plt.cm.Greys, plt.cm.Purples, plt.cm.Blues, plt.cm.Greens, plt.cm.Oranges, plt.cm.Reds]
     CMAPS_R = [plt.cm.Greys_r, plt.cm.Purples_r, plt.cm.Blues_r, plt.cm.Greens_r, plt.cm.Oranges_r, plt.cm.Reds_r]
 
-    def __init__(self, wifi_sim: WifiEnvironment, cache_dir: str, exp_name: str):
-        self._cache_dir = Path(cache_dir) / exp_name
+    def __init__(self, wifi_sim: WifiEnvironment, cache_dir: str, net_name: str):
+        self._cache_dir = Path(cache_dir) / "nets" / net_name
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
         self._wifi_sim = wifi_sim
@@ -49,13 +49,13 @@ class MapPlotter:
                         self._mat_lat[ap, row, col] = metrics[WifiMetric.LATENCY][WifiStat.MEAN]
                         self._mat_num_tries[ap, row, col] = metrics[WifiMetric.NUM_TRIES][WifiStat.MEAN]
 
-    def plot_maps(self, extension: str = "png", trajectory=False):
+    def plot_maps(self, extension: str = "png", traj_num=None, interactive=False):
         if self._mat_rssi is None or self._mat_lat is None:
             raise ValueError("Maps not generated yet.")
         fig_dict = {}
         
         # create plot dir
-        plot_dir = self._cache_dir / ("plots" if not trajectory else "plots_trj") 
+        plot_dir = self._cache_dir / "plots"
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         # create matrices for best metric value in each point
@@ -85,7 +85,6 @@ class MapPlotter:
         cbar = ax.figure.colorbar(im, ax=ax)
         cbar.ax.set_ylabel("rssi", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
-        fig.savefig(plot_dir / "rssi.{}".format(extension))
         fig_dict["rssi"] = fig, ax
 
         fig, ax = plt.subplots()
@@ -94,7 +93,6 @@ class MapPlotter:
         cbar.ax.set_ylabel("latency", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
         fig.tight_layout()
-        fig.savefig(plot_dir / "latency.{}".format(extension))
         fig_dict["latency"] = fig, ax
 
         fig, ax = plt.subplots()
@@ -103,7 +101,6 @@ class MapPlotter:
         cbar.ax.set_ylabel("num_tries", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
         fig.tight_layout()
-        fig.savefig(plot_dir / "num_tries.{}".format(extension))
         fig_dict["num_tries"] = fig, ax
         
         # plot multicolor matrices for best metric
@@ -114,7 +111,6 @@ class MapPlotter:
             im = ax.imshow(mat_rssi_multi[ap, :, :], cmap=MapPlotter.CMAPS[ap], vmin=min_rssi, vmax=max_rssi)
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
         fig.tight_layout()
-        fig.savefig(plot_dir / "rssi_multi.{}".format(extension))
         fig_dict["rssi_multi"] = fig , ax
         
         fig, ax = plt.subplots()
@@ -124,7 +120,6 @@ class MapPlotter:
             im = ax.imshow(mat_lat_multi[ap, :, :], cmap=MapPlotter.CMAPS_R[ap], vmin=min_lat, vmax=max_lat)
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
         fig.tight_layout()
-        fig.savefig(plot_dir / "latency_multi.{}".format(extension))
         fig_dict["latency_multy"] = fig, ax
 
         fig, ax = plt.subplots()
@@ -134,24 +129,39 @@ class MapPlotter:
             im = ax.imshow(mat_num_tries_multi[ap, :, :], cmap=MapPlotter.CMAPS_R[ap], vmin=min_num_tries, vmax=max_num_tries)
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
         fig.tight_layout()
-        fig.savefig(plot_dir / "num_tries_multi.{}".format(extension))
         fig_dict["num_tries_multi"] = fig, ax
 
-        # Interactive plot of trajectory
-        if trajectory:
-            df_trj = pd.read_csv(self._cache_dir / "trajectory.csv")
+        # save all figures
+        for name, img in fig_dict.items():
+            fig, _ = img
+            fig.savefig(plot_dir / "{}.{}".format(name, extension))
+
+        # plot trajectories
+        if traj_num is not None:    
+            df_trj = pd.read_csv(self._cache_dir / "{:02d}_trajectory.csv".format(traj_num))
             segments = df_trj.groupby(["segment", "ap", "count"]).agg(
                 time=('time', lambda row: row.iloc[0]),
                 start_row=('row', lambda row: row.iloc[0]), start_col=('col', lambda row: row.iloc[0]),
-                end_row=('row', lambda row: row.iloc[-1]), end_col=('col', lambda row: row.iloc[-1])).sort_values(by='time', ascending=True).reset_index()
+                end_row=('row', lambda row: row.iloc[-1]), end_col=('col', lambda row: row.iloc[-1])
+            ).sort_values(by='time', ascending=True).reset_index()
 
+            plot_dir_trj = self._cache_dir / "plots_trj" / "{:02d}".format(traj_num)
+            plot_dir_trj.mkdir(parents=True, exist_ok=True)     
+            
             plt.ion()
             for row in segments.itertuples():
                 print("Segment {} - {} - {} --> {}".format(row.segment, row.ap, TupleRC(row=row.start_row, col=row.start_col), TupleRC(row=row.end_row, col=row.end_col)))
                 for fig, ax in fig_dict.values():
                     ax.plot([row.start_col, row.end_col], [row.start_row, row.end_row], color=MapPlotter.COLORS[int(row.ap)])
-                plt.pause(0.01)
-                input()
+                if interactive:
+                    plt.pause(0.001)
+                    input()
 
+            # save all figures with trajectory
+            for name, img in fig_dict.items():
+                fig, _ = img
+                fig.savefig(plot_dir_trj / "{}.{}".format(name, extension))
+
+        # close all figures
         for fig, _ in fig_dict.values():
             plt.close(fig)

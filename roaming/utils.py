@@ -68,15 +68,16 @@ class TupleRC:
 @nested_dataclass
 class WifiParams:
     rssi_threshold: float
-    handover_penalty: int
-    switch_penalty: int
-    no_ap_penalty: int
+    roaming_time: float
+    min_switch_time: float
 
 
 @nested_dataclass
 class NetworkConfig:
+    net_name: str
     map_dims: TupleRC
-    ap_positions: list[TupleRC]     
+    ap_positions: list[TupleRC]
+    datasets : list[str]
     ap_loads: list[float]
 
     def __post_init__(self):
@@ -84,3 +85,11 @@ class NetworkConfig:
             if len(self.ap_positions) != len(self.ap_loads):
                 raise ValueError("Number of AP positions and loads must be the same.")
             return
+        
+@dataclass
+class SimConfig:
+    trajectory_len: int
+    pkt_period: float
+    speed: float
+    beacon_time: float
+    tx_start_time: float
