@@ -1,5 +1,7 @@
+import json
 from typing import get_args, get_origin
-from dataclasses import dataclass, is_dataclass
+from dataclasses import dataclass, is_dataclass, asdict
+from pathlib import Path
 import numpy as np
 import math
 
@@ -63,18 +65,18 @@ class TupleRC:
     @property
     def np_array(self):
         return np.array([self.row, self.col])
+    
 
-
-@nested_dataclass
-class WifiParams:
-    rssi_threshold: float
-    roaming_time: float
-    min_switch_time: float
+@dataclass
+class ExpConfig:
+    exp_name: str
+    data_dir: str
+    cache_dir: str
+    sim_seed: int
 
 
 @nested_dataclass
 class NetworkConfig:
-    net_name: str
     map_dims: TupleRC
     ap_positions: list[TupleRC]
     datasets : list[str]
@@ -86,6 +88,15 @@ class NetworkConfig:
                 raise ValueError("Number of AP positions and loads must be the same.")
             return
         
+
+@nested_dataclass
+class WifiConfig:
+    roaming_alg: str
+    rssi_threshold: float
+    roaming_time: float
+    min_switch_time: float | None
+
+        
 @dataclass
 class SimConfig:
     trajectory_len: int
@@ -93,3 +104,26 @@ class SimConfig:
     speed: float
     beacon_time: float
     tx_start_time: float
+
+
+@nested_dataclass
+class Config:
+    exp_conf: ExpConfig
+    net_conf: NetworkConfig
+    wifi_conf: WifiConfig
+    sim_conf: SimConfig
+
+
+def load_config(fname: str) -> Config:
+    with open(fname) as f:
+        conf = json.load(f)
+    return Config(**conf)
+
+
+def save_config(conf: Config, traj_num: int):
+    exp_conf = conf.exp_conf
+    out_dir = Path(exp_conf.cache_dir)/ "experiments"/ exp_conf.exp_name / "confs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fname = out_dir / "{:02d}_conf.json".format(traj_num)    
+    with open(fname, "w") as f:
+        json.dump(asdict(conf), f, indent=4)

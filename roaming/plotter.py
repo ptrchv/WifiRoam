@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -7,14 +8,16 @@ from roaming.metrics import WifiMetric, WifiStat
 from roaming.utils import TupleRC
 from roaming.environment import WifiEnvironment
 
+logger = logging.getLogger(__name__)
+
 
 class MapPlotter:
     COLORS = ["black", "purple", "blue", "green", "orange", "red"]    
     CMAPS = [plt.cm.Greys, plt.cm.Purples, plt.cm.Blues, plt.cm.Greens, plt.cm.Oranges, plt.cm.Reds]
     CMAPS_R = [plt.cm.Greys_r, plt.cm.Purples_r, plt.cm.Blues_r, plt.cm.Greens_r, plt.cm.Oranges_r, plt.cm.Reds_r]
 
-    def __init__(self, wifi_sim: WifiEnvironment, cache_dir: str, net_name: str):
-        self._cache_dir = Path(cache_dir) / "nets" / net_name
+    def __init__(self, wifi_sim: WifiEnvironment, cache_dir: str, exp_name: str):
+        self._cache_dir = Path(cache_dir) / "experiments" / exp_name
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
         self._wifi_sim = wifi_sim
@@ -55,7 +58,7 @@ class MapPlotter:
         fig_dict = {}
         
         # create plot dir
-        plot_dir = self._cache_dir / "plots"
+        plot_dir = self._cache_dir / "plots" / "{:02d}".format(traj_num)
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         # create matrices for best metric value in each point
@@ -146,11 +149,11 @@ class MapPlotter:
             ).sort_values(by='time', ascending=True).reset_index()
 
             plot_dir_trj = self._cache_dir / "plots_trj" / "{:02d}".format(traj_num)
-            plot_dir_trj.mkdir(parents=True, exist_ok=True)     
+            plot_dir_trj.mkdir(parents=True, exist_ok=True)
             
             plt.ion()
             for row in segments.itertuples():
-                print("Segment {} - {} - {} --> {}".format(row.segment, row.ap, TupleRC(row=row.start_row, col=row.start_col), TupleRC(row=row.end_row, col=row.end_col)))
+                logger.info("Segment {} - {} - {} --> {}".format(row.segment, row.ap, TupleRC(row=row.start_row, col=row.start_col), TupleRC(row=row.end_row, col=row.end_col)))
                 for fig, ax in fig_dict.values():
                     ax.plot([row.start_col, row.end_col], [row.start_row, row.end_row], color=MapPlotter.COLORS[int(row.ap)])
                 if interactive:

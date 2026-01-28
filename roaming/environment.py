@@ -4,7 +4,7 @@ import pandas as pd
 import json
 from dataclasses import dataclass, asdict
 from abc import ABC, abstractmethod
-from roaming.utils import NetworkConfig, WifiParams, TupleRC
+from roaming.utils import NetworkConfig, WifiConfig, TupleRC
 from pathlib import Path
 import csv
 from collections import deque
@@ -66,8 +66,8 @@ class WifiEnvironment(ABC):
 
 
 class SimpleWifiEnv(WifiEnvironment):
-    def __init__(self, net_conf: NetworkConfig, wifi_params: WifiParams):
-        self._wifi_params = wifi_params
+    def __init__(self, net_conf: NetworkConfig, wifi_conf: WifiConfig):
+        self._wifi_conf = wifi_conf
         self._net_conf = net_conf
 
     @property
@@ -101,12 +101,12 @@ class SimpleWifiEnv(WifiEnvironment):
         return [BeaconInfo(rssi=rssi, snr=None) for rssi in rssi_list]
 
     def to_json(self) -> str:
-        return json.dumps({"net_conf": asdict(self._net_conf), "wifi_params": asdict(self._wifi_params)})
+        return json.dumps({"net_conf": asdict(self._net_conf), "wifi_conf": asdict(self._wifi_conf)})
 
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
-        return SimpleWifiEnv(NetworkConfig(**data["net_conf"]), WifiParams(**data["wifi_params"]))
+        return SimpleWifiEnv(NetworkConfig(**data["net_conf"]), WifiConfig(**data["wifi_conf"]))
     
     def _calculate_rssi(self, sta_pos: TupleRC, ap: int, noise: float) -> float:
         dist = np.linalg.norm(sta_pos.np_array - self._net_conf.ap_positions[ap].np_array)

@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass, asdict, fields
 
-EXP = "v2_beacons"
+EXP = "v3_long"
 BASE_DIR =  Path("/home/ptrchv/repos/WifiRoaming/analysis")
 TRAJ_DIR = BASE_DIR / "trajectories"/ EXP
 
@@ -35,21 +35,21 @@ def compute_stats(df):
     res = Result()
     num_packets = df.shape[0]
 
-    df_conn = df[df["acked"] == True]
-    df_disc = df[df["acked"] == False]
+    df_ack = df[df["acked"] == True]
+    df_lost = df[df["acked"] == False]
 
-    res.plr = df_disc.shape[0] / num_packets
-    res.lat_mean = df_conn["latency"].mean()
-    res.lat_99 = np.percentile(df_conn["latency"].values, 99)
-    res.lat_99_9 = np.percentile(df_conn["latency"].values, 99.9)
-    res.num_tries_mean = df_conn["num_tries"].mean()
-    res.num_tries_99 = np.percentile(df_conn["num_tries"].values, 99)
-    res.num_tries_99_9 =  np.percentile(df_conn["num_tries"].values, 99)
-    res.rssi_mean = df_conn["rssi"].mean()
-    res.rssi_99 = np.percentile(df_conn["rssi"].values, 99)
-    res.rssi_99_9 =  np.percentile(df_conn["rssi"].values, 99)
-    res.pkt_roaming = df_disc[df_disc["state"] == "ROAMING"].shape[0]
-    res.pkt_disconnected = df_disc[df_disc["state"] == "DISCONNECTED"].shape[0]
+    res.plr = df_lost.shape[0] / num_packets
+    res.lat_mean = df_ack["latency"].mean()
+    res.lat_99 = np.percentile(df_ack["latency"].values, 99)
+    res.lat_99_9 = np.percentile(df_ack["latency"].values, 99.9)
+    res.num_tries_mean = df_ack["num_tries"].mean()
+    res.num_tries_99 = np.percentile(df_ack["num_tries"].values, 99)
+    res.num_tries_99_9 =  np.percentile(df_ack["num_tries"].values, 99)
+    res.rssi_mean = df_ack["rssi"].mean()
+    res.rssi_99 = np.percentile(df_ack["rssi"].values, 99)
+    res.rssi_99_9 =  np.percentile(df_ack["rssi"].values, 99)
+    res.pkt_roaming = df_lost[df_lost["state"] == "ROAMING"].shape[0]
+    res.pkt_disconnected = df_lost[df_lost["state"] == "DISCONNECTED"].shape[0]
 
     return res
 
@@ -57,7 +57,7 @@ def compute_stats(df):
 cols = ["name"] + [f.name for f in fields(Result)]
 df_res = pd.DataFrame(columns=cols)
 
-for name, df in datasets.items():
+for name, df in sorted(datasets.items(), key=lambda x: x[0]):
     res_dict = asdict(compute_stats(df))
     res_dict["name"] = name
     df_res.loc[len(df_res)] = res_dict

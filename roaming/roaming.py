@@ -43,7 +43,7 @@ class RoamingAlgorithm(ABC):
     def notify_beacon(self, pos, beacons) -> None:
         # disconnection after three missed beacons
         if self._state == RoamingState.CONNECTED and beacons[self._ap] is None:
-            logging.info("Missed beacons")
+            logger.info("Missed beacons")
             self._missed_beacons += 1
             if self._missed_beacons >= 3:
                 self._disconnect()
@@ -92,7 +92,7 @@ class DistanceRoaming(RoamingAlgorithm):
         pass
 
 
-class RSSIRoamingAlgorithm(RoamingAlgorithm):
+class RSSIRoaming(RoamingAlgorithm):
     def __init__(self, env, wifi_sim, roaming_time, rssi_threshold):
         super().__init__(env, wifi_sim, roaming_time)
         self._rssi_threshold = rssi_threshold
@@ -100,7 +100,7 @@ class RSSIRoamingAlgorithm(RoamingAlgorithm):
         self._bad_beacons = 0
     
     def notify_beacon(self, pos, beacons):
-        # check disconnectio due to missed beacons
+        # check disconnectiog due to missed beacons
         super().notify_beacon(pos, beacons)
 
         # update rssi list if beacon is received
@@ -189,6 +189,10 @@ class OptimizedRoaming(RoamingAlgorithm):
         switch_idxs = [i for i in range(len(best_aps) -1) if best_aps[i] != best_aps[i+1]]
         self._switch_points = [positions[i] for i in switch_idxs]
         self._switch_aps = [best_aps[i+1] for i in switch_idxs]
+        
+        switch_times = [(self._switch_points[i+1] - self._switch_points[i]).norm() / self._traj_sim.sim_config.speed for i in range(len(self._switch_points) -1)]
+        logger.info(self._switch_aps)
+        logger.info(switch_times)
 
         # remove short switching intervals
         if self._min_switch_time is not None:
