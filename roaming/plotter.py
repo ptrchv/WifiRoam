@@ -108,7 +108,7 @@ class MapPlotter:
         cbar = ax.figure.colorbar(im, ax=ax)
         cbar.ax.set_ylabel("Num. tries (mean)", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
-        ax.scatter([30, 70], [30, 30], c = "orange")
+        #ax.scatter([30, 70], [30, 30], c = "orange")
         ax.set_xlabel("Y position (m)")
         ax.set_ylabel("X position (m)")
         fig.tight_layout()

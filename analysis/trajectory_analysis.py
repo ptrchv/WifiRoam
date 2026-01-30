@@ -31,10 +31,6 @@ for f in TRAJ_DIR.iterdir():
     datasets[ds_name] = pd.read_csv(f)
 
 # %%
-for name, ds in datasets.items():
-    print("{}: packets {}".format(name, ds.shape[0]))
-
-# %%
 def compute_stats(df):    
     res = Result()
     num_packets = df.shape[0]
