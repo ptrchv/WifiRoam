@@ -1,4 +1,4 @@
-# WifiRoaming
+# WifiRoam
 
 ## plt() show with Remote-SSH (VSCode)
 Check on server if X11Forwarding is enabled (`X11Forwarding yes`):
@@ -19,22 +19,8 @@ Install PyQt5 on server to fix warning (possibly in virtual environment):
 python -m pip install PyQt5
 ```
 
-
-
+## Data
+- [Zenono dataset](https://doi.org/10.5281/zenodo.17938018) (to download inside the ```data``` folder).
 
 # Material
 - [DAWN in Open WRT](https://openwrt.org/docs/guide-user/network/wifi/dawn)
-- [Shared folder Onedrive](https://cnrsc-my.sharepoint.com/:f:/g/personal/pietrochiavassa_cnr_it/EpMWGTvyLUZIg7SypWAb1lIBpv4MWQ1yAclc3aNCDxHS6A?e=2wSiFC)
-
-
-
- # Open questions
- - how latency is computed?
- - how handover penalty is taken into account when training
-
-
- ## Todo
-
- - generate map plots from boris code (possibily one plot for each metric, RSSI and latency, with all APs)
- - function to generate trajectories
- - function to generate handover times
