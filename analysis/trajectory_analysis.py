@@ -31,6 +31,10 @@ for f in TRAJ_DIR.iterdir():
     datasets[ds_name] = pd.read_csv(f)
 
 # %%
+for name, ds in datasets.items():
+    print("{}: packets {}".format(name, ds.shape[0]))
+
+# %%
 def compute_stats(df):    
     res = Result()
     num_packets = df.shape[0]
@@ -39,15 +43,15 @@ def compute_stats(df):
     df_lost = df[df["acked"] == False]
 
     res.plr = df_lost.shape[0] / num_packets
-    res.lat_mean = df_ack["latency"].mean()
-    res.lat_99 = np.percentile(df_ack["latency"].values, 99)
-    res.lat_99_9 = np.percentile(df_ack["latency"].values, 99.9)
+    res.lat_mean = df_ack["latency"].mean() / 1000
+    res.lat_99 = np.percentile(df_ack["latency"].values, 99) / 1000
+    res.lat_99_9 = np.percentile(df_ack["latency"].values, 99.9) / 1000
     res.num_tries_mean = df_ack["num_tries"].mean()
     res.num_tries_99 = np.percentile(df_ack["num_tries"].values, 99)
     res.num_tries_99_9 =  np.percentile(df_ack["num_tries"].values, 99)
-    res.rssi_mean = df_ack["rssi"].mean()
-    res.rssi_99 = np.percentile(df_ack["rssi"].values, 99)
-    res.rssi_99_9 =  np.percentile(df_ack["rssi"].values, 99)
+    res.rssi_mean = df["rssi"].mean()
+    res.rssi_99 = np.percentile(df["rssi"].values, 99)
+    res.rssi_99_9 =  np.percentile(df["rssi"].values, 99)
     res.pkt_roaming = df_lost[df_lost["state"] == "ROAMING"].shape[0]
     res.pkt_disconnected = df_lost[df_lost["state"] == "DISCONNECTED"].shape[0]
 
@@ -65,10 +69,3 @@ for name, df in sorted(datasets.items(), key=lambda x: x[0]):
 print(df_res)
 df_res.to_csv(BASE_DIR / "result_{}.csv".format(EXP), index=False, float_format='%.4f')
 
-# %%
-
-
-# PLR
-# Retransmission number
-# 
-# %%

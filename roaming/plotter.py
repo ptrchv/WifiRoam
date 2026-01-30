@@ -58,7 +58,8 @@ class MapPlotter:
         fig_dict = {}
         
         # create plot dir
-        plot_dir = self._cache_dir / "plots" / "{:02d}".format(traj_num)
+        plot_dir = self._cache_dir / "plots"
+        plot_dir = plot_dir / "{:02d}".format(traj_num) if traj_num else plot_dir 
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         # create matrices for best metric value in each point
@@ -84,25 +85,32 @@ class MapPlotter:
         # plot best metric values matrices
         fig, ax = plt.subplots()
         im = ax.imshow(mat_rssi_best[:, :])
-        fig.tight_layout()
         cbar = ax.figure.colorbar(im, ax=ax)
-        cbar.ax.set_ylabel("rssi", rotation=-90, va="bottom")
+        cbar.ax.set_ylabel("RSSI (dBm)", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
+        ax.set_xlabel("Y position (m)")
+        ax.set_ylabel("X position (m)")
+        fig.tight_layout()
         fig_dict["rssi"] = fig, ax
 
         fig, ax = plt.subplots()
         im = ax.imshow(mat_lat_best[:, :], cmap="Blues_r")
         cbar = ax.figure.colorbar(im, ax=ax)
-        cbar.ax.set_ylabel("latency", rotation=-90, va="bottom")
+        cbar.ax.set_ylabel("Latency", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
+        ax.set_xlabel("Y position (m)")
+        ax.set_ylabel("X position (m)")
         fig.tight_layout()
         fig_dict["latency"] = fig, ax
 
         fig, ax = plt.subplots()
         im = ax.imshow(mat_num_tries_best[:, :], cmap="Blues_r")
         cbar = ax.figure.colorbar(im, ax=ax)
-        cbar.ax.set_ylabel("num_tries", rotation=-90, va="bottom")
+        cbar.ax.set_ylabel("Num. tries (mean)", rotation=-90, va="bottom")
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
+        ax.scatter([30, 70], [30, 30], c = "orange")
+        ax.set_xlabel("Y position (m)")
+        ax.set_ylabel("X position (m)")
         fig.tight_layout()
         fig_dict["num_tries"] = fig, ax
         
@@ -113,6 +121,8 @@ class MapPlotter:
         for ap in range(self._wifi_sim.n_aps):            
             im = ax.imshow(mat_rssi_multi[ap, :, :], cmap=MapPlotter.CMAPS[ap], vmin=min_rssi, vmax=max_rssi)
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
+        ax.set_xlabel("Y position (m)")
+        ax.set_ylabel("X position (m)")
         fig.tight_layout()
         fig_dict["rssi_multi"] = fig , ax
         
@@ -122,6 +132,8 @@ class MapPlotter:
         for ap in range(self._wifi_sim.n_aps):
             im = ax.imshow(mat_lat_multi[ap, :, :], cmap=MapPlotter.CMAPS_R[ap], vmin=min_lat, vmax=max_lat)
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
+        ax.set_xlabel("Y position (m)")
+        ax.set_ylabel("X position (m)")
         fig.tight_layout()
         fig_dict["latency_multy"] = fig, ax
 
@@ -131,6 +143,8 @@ class MapPlotter:
         for ap in range(self._wifi_sim.n_aps):
             im = ax.imshow(mat_num_tries_multi[ap, :, :], cmap=MapPlotter.CMAPS_R[ap], vmin=min_num_tries, vmax=max_num_tries)
         ax.scatter([pos.col for pos in self._wifi_sim.ap_positions], [pos.row for pos in self._wifi_sim.ap_positions], c = "red")
+        ax.set_xlabel("Y position (m)")
+        ax.set_ylabel("X position (m)")
         fig.tight_layout()
         fig_dict["num_tries_multi"] = fig, ax
 
