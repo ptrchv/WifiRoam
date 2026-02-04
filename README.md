@@ -1,4 +1,8 @@
 # WifiRoam
+A simple Wi-Fi handover simulator.
+
+## Data
+- [Zenono dataset](https://doi.org/10.5281/zenodo.17938018) (to download inside the ```data``` folder).
 
 ## plt() show with Remote-SSH (VSCode)
 Check on server if X11Forwarding is enabled (`X11Forwarding yes`):
@@ -18,6 +22,3 @@ Install PyQt5 on server to fix warning (possibly in virtual environment):
 ```bash
 python -m pip install PyQt5
 ```
-
-## Data
-- [Zenono dataset](https://doi.org/10.5281/zenodo.17938018) (to download inside the ```data``` folder).
