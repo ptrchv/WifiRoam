@@ -21,6 +21,3 @@ python -m pip install PyQt5
 
 ## Data
 - [Zenono dataset](https://doi.org/10.5281/zenodo.17938018) (to download inside the ```data``` folder).
-
-# Material
-- [DAWN in Open WRT](https://openwrt.org/docs/guide-user/network/wifi/dawn)
